@@ -318,20 +318,32 @@ abstract class AbstractElectronBuilderPackageTask
                 targetFormat.needsPluginUpdateYml ||
                     (targetFormat.producesUpdateManifest && dist.publish.s3.enabled)
             if (!shouldGenerate) return
-            val channel = resolveUpdateChannel(dist)
+            // Auto-update manifests are keyed to the app's release version — the full
+            // SemVer including any -beta.N — which is what the running app reports
+            // (appVersion = nativeDistributions.packageVersion). NSIS/MSI strip the
+            // pre-release suffix for the installer version (exePackageVersion /
+            // msiPackageVersion), but the update channel and the manifest version must
+            // keep it, otherwise the strict installer version (e.g. 2.3.5) drops beta
+            // builds onto the `latest` channel and the version no longer matches the
+            // running app's appVersion. Fall back to the task's packageVersion when no
+            // distribution-level version is set.
+            val manifestVersion = dist.packageVersion ?: packageVersion.orNull ?: "0.0.0"
+            val channel = resolveUpdateChannel(dist, manifestVersion)
             val ymlFilename = targetFormat.updateYmlFilename(channel)
-            val version = packageVersion.orNull ?: "0.0.0"
-            UpdateYmlGenerator.generateIfMissing(outputDir, ymlFilename, version, logger)
+            UpdateYmlGenerator.generateIfMissing(outputDir, ymlFilename, manifestVersion, logger)
         }
 
-        private fun resolveUpdateChannel(dist: JvmApplicationDistributions): ReleaseChannel {
+        private fun resolveUpdateChannel(
+            dist: JvmApplicationDistributions,
+            manifestVersion: String?,
+        ): ReleaseChannel {
             val publish = dist.publish
             return when {
                 publish.github.enabled -> publish.github.channel
                 publish.generic.enabled -> publish.generic.channel
                 // S3 has no channel setting; mirror electron-builder and derive it from the version's
                 // pre-release tag so the manifest filename matches the channel the updater subscribes to.
-                publish.s3.enabled -> UpdateYmlPublish.channelFromVersion(packageVersion.orNull)
+                publish.s3.enabled -> UpdateYmlPublish.channelFromVersion(manifestVersion)
                 else -> ReleaseChannel.Latest
             }
         }
