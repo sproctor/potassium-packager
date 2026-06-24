@@ -1,5 +1,6 @@
 package io.github.kdroidfilter.nucleus.desktop.application.internal
 
+import io.github.kdroidfilter.nucleus.desktop.application.dsl.ReleaseChannel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -64,6 +65,26 @@ class UpdateYmlPublishTest {
     fun `hasCiTag ignores blank values`() {
         assertFalse(UpdateYmlPublish.hasCiTag(mapOf("TRAVIS_TAG" to "", "GITHUB_REF" to null)))
         assertTrue(UpdateYmlPublish.hasCiTag(mapOf("TRAVIS_TAG" to "v9")))
+    }
+
+    // --- channelFromVersion ---
+
+    @Test
+    fun `channelFromVersion maps pre-release tags to channels`() {
+        assertEquals(ReleaseChannel.Beta, UpdateYmlPublish.channelFromVersion("2.3.5-beta.8"))
+        assertEquals(ReleaseChannel.Beta, UpdateYmlPublish.channelFromVersion("2.3.5-beta"))
+        assertEquals(ReleaseChannel.Alpha, UpdateYmlPublish.channelFromVersion("1.0.0-alpha.1"))
+        // Case-insensitive, matching electron-builder.
+        assertEquals(ReleaseChannel.Beta, UpdateYmlPublish.channelFromVersion("2.3.5-BETA.1"))
+    }
+
+    @Test
+    fun `channelFromVersion is latest for releases without a recognized pre-release tag`() {
+        assertEquals(ReleaseChannel.Latest, UpdateYmlPublish.channelFromVersion("2.3.5"))
+        assertEquals(ReleaseChannel.Latest, UpdateYmlPublish.channelFromVersion(null))
+        assertEquals(ReleaseChannel.Latest, UpdateYmlPublish.channelFromVersion(""))
+        // An unrecognized pre-release tag (e.g. rc) falls back to latest rather than guessing.
+        assertEquals(ReleaseChannel.Latest, UpdateYmlPublish.channelFromVersion("2.3.5-rc.1"))
     }
 
     // --- s3Key ---

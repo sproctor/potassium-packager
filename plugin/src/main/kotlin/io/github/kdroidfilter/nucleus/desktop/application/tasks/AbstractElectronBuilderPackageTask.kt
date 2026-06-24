@@ -307,7 +307,17 @@ abstract class AbstractElectronBuilderPackageTask
             outputDir: File,
             dist: JvmApplicationDistributions,
         ) {
-            if (!targetFormat.needsPluginUpdateYml) return
+            // electron-builder natively writes the per-channel manifest for AppImage/NSIS/DMG/DEB/RPM,
+            // but only while its own auto-update publishing is enabled. For S3 we force
+            // `publishAutoUpdate: false` (so the per-format manifests don't clobber each other on the
+            // shared S3 key — they are merged by AbstractMergeUpdateYmlTask), which also stops
+            // electron-builder from writing the manifest at all. So when publishing to S3 the plugin
+            // must generate the manifest for every auto-updatable format, not just MSI/Portable; the
+            // generator is a no-op when a manifest already exists, so this is safe either way.
+            val shouldGenerate =
+                targetFormat.needsPluginUpdateYml ||
+                    (targetFormat.producesUpdateManifest && dist.publish.s3.enabled)
+            if (!shouldGenerate) return
             val channel = resolveUpdateChannel(dist)
             val ymlFilename = targetFormat.updateYmlFilename(channel)
             val version = packageVersion.orNull ?: "0.0.0"
@@ -319,6 +329,9 @@ abstract class AbstractElectronBuilderPackageTask
             return when {
                 publish.github.enabled -> publish.github.channel
                 publish.generic.enabled -> publish.generic.channel
+                // S3 has no channel setting; mirror electron-builder and derive it from the version's
+                // pre-release tag so the manifest filename matches the channel the updater subscribes to.
+                publish.s3.enabled -> UpdateYmlPublish.channelFromVersion(packageVersion.orNull)
                 else -> ReleaseChannel.Latest
             }
         }

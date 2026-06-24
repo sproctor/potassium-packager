@@ -5,6 +5,7 @@
 
 package io.github.kdroidfilter.nucleus.desktop.application.internal
 
+import io.github.kdroidfilter.nucleus.desktop.application.dsl.ReleaseChannel
 import java.io.File
 
 /**
@@ -46,6 +47,25 @@ internal object UpdateYmlPublish {
 
     /** A merged manifest plus the filename it should be written/uploaded under. */
     data class MergedManifest(val fileName: String, val content: String)
+
+    /**
+     * Derives the [ReleaseChannel] from a semantic version's pre-release tag, mirroring
+     * electron-builder's own channel detection: `*-alpha*` → [ReleaseChannel.Alpha],
+     * `*-beta*` → [ReleaseChannel.Beta], and anything else (including a plain release with no
+     * pre-release tag) → [ReleaseChannel.Latest].
+     *
+     * Used for S3 publishing, which — unlike the github/generic providers — has no explicit channel
+     * setting, so the channel (and thus the `<channel><osSuffix>.yml` manifest name the in-app updater
+     * subscribes to) must come from the version, exactly as electron-builder would have named it.
+     */
+    fun channelFromVersion(version: String?): ReleaseChannel {
+        val prerelease = version?.substringAfter('-', "").orEmpty().lowercase()
+        return when {
+            prerelease.startsWith("alpha") -> ReleaseChannel.Alpha
+            prerelease.startsWith("beta") -> ReleaseChannel.Beta
+            else -> ReleaseChannel.Latest
+        }
+    }
 
     /**
      * Resolves the electron-builder publish mode the same way
