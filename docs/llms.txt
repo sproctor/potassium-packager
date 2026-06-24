@@ -1,0 +1,858 @@
+# Nucleus Gradle Plugin
+
+> Nucleus is a Gradle plugin for packaging and distributing Compose / JVM desktop applications on macOS, Windows, and Linux. It extends the official JetBrains Compose Desktop plugin and adds many installer formats (deb/rpm/AppImage/snap/flatpak, msi/exe/appx, dmg/pkg), code signing & notarization, electron-builder-based auto-update, and GraalVM Native Image builds. Plugin id: com.seanproctor.nucleus.
+
+- Docs: https://github.com/sproctor/nucleus-plugin
+- GitHub: https://github.com/sproctor/nucleus-plugin
+- Maven Central: https://central.sonatype.com/artifact/com.seanproctor/nucleus-gradle-plugin
+- License: MIT
+
+**Nucleus is a Gradle plugin for packaging and distributing Compose / JVM desktop applications** on macOS, Windows, and Linux.
+
+It is a drop-in extension of the official JetBrains Compose Desktop plugin — keep your existing `compose.desktop` configuration and opt into the capabilities you need. Nucleus picks up where jpackage stops: more installer formats, real code signing and notarization, built-in auto-update, and GraalVM Native Image builds, all from a single Gradle DSL.
+
+## What it does
+
+### Ship everywhere
+
+- **Many installer formats** — Linux `deb` / `rpm` / `AppImage` / `snap` / `flatpak`, Windows `msi` / `exe` (NSIS) / `appx` / portable, macOS `dmg` / `pkg`, plus archives (`zip`, `tar`, `7z`)
+- **Store-ready** — Mac App Store, Microsoft Store, Snapcraft, Flathub
+- **Code signing & notarization** — Windows (PFX / Azure) and macOS, built into the build pipeline
+- **Auto-update** — electron-builder-compatible update metadata (`latest-*.yml`) generated alongside your installers, with SHA-512 verification
+- **Deep links & file associations** — protocol handlers and file type registration on all platforms
+
+### Go further
+
+- **GraalVM Native Image** — compile your app into a standalone native binary. Nucleus resolves the reachability metadata transparently, so most apps build with zero manual reflection config.
+- **AOT cache** — enable the JDK 25+ ahead-of-time cache for faster startup with a single flag.
+- **ProGuard release builds** — optimization and obfuscation for production.
+- **Trusted CA certificates** — import custom root CAs into the bundled JVM's `cacerts` at build time.
+- **CI/CD ready** — reusable GitHub Actions for multi-platform matrix builds, universal macOS binaries, and MSIX bundles.
+
+## Quick start
+
+```kotlin
+// settings.gradle.kts
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+```
+
+```kotlin
+// build.gradle.kts
+plugins {
+    kotlin("jvm") version "..."
+    id("org.jetbrains.kotlin.plugin.compose") version "..."
+    id("org.jetbrains.compose") version "..."
+    id("com.seanproctor.nucleus") version "1.15.11"
+}
+
+nucleus.application {
+    mainClass = "com.example.MainKt"
+
+    nativeDistributions {
+        targetFormats(TargetFormat.Dmg, TargetFormat.Nsis, TargetFormat.Deb)
+        packageName = "MyApp"
+        packageVersion = "1.0.0"
+    }
+}
+```
+
+```bash
+./gradlew run                              # Run locally
+./gradlew packageDistributionForCurrentOS  # Build installers for the current OS
+```
+
+**DSL imports stay the same:** The Kotlin DSL types remain under `io.github.kdroidfilter.nucleus.*` (for example
+`import io.github.kdroidfilter.nucleus.desktop.application.dsl.TargetFormat`). Only the
+Maven coordinates and the plugin id use the `com.seanproctor` group.
+## Coordinates
+
+- **Plugin id:** `com.seanproctor.nucleus`
+- **Latest version:** `1.15.11`
+- **Published to:** Maven Central
+- **Repository:** [github.com/sproctor/nucleus-plugin](https://github.com/sproctor/nucleus-plugin)
+
+## Requirements
+
+| Requirement | Version | Note |
+|-------------|---------|------|
+| JDK | 17+ (25+ for AOT cache) | |
+| Gradle | 8.0+ | |
+| Kotlin | 2.0+ | |
+| Node.js | 18+ | Required by electron-builder for installer formats |
+
+## Next steps
+
+- [Getting Started](getting-started.md) — install the plugin and build your first installer
+- [Configuration](configuration.md) — full DSL reference
+- [Migration from org.jetbrains.compose](migration.md) — switch an existing Compose Desktop project
+
+## License
+
+MIT — See [LICENSE](https://github.com/sproctor/nucleus-plugin/blob/main/LICENSE).
+</content>
+
+---
+
+# Getting Started
+
+## Prerequisites
+
+Nucleus uses [electron-builder](https://www.electron.build/) under the hood to produce platform-specific installers (DMG, NSIS, DEB, RPM, AppImage, etc.). This requires **Node.js 18+** and **npm** installed on your build machine.
+
+```bash
+# Verify your installation
+node --version   # v18.0.0 or later
+npm --version
+```
+
+**CI/CD:** The `setup-nucleus` composite action installs Node.js automatically. See [CI/CD](ci-cd.md) for details.
+## Installation
+
+The plugin is published to Maven Central. Add Maven Central to your plugin repositories, then apply the plugin in your build script:
+
+```kotlin
+// settings.gradle.kts
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+```
+
+```kotlin
+// build.gradle.kts
+plugins {
+    kotlin("jvm") version "..."
+    id("org.jetbrains.kotlin.plugin.compose") version "..."
+    id("org.jetbrains.compose") version "..."
+    id("com.seanproctor.nucleus") version "1.15.11"
+}
+```
+
+**DSL imports stay the same:** The Kotlin DSL types remain under `io.github.kdroidfilter.nucleus.*` (for example
+`import io.github.kdroidfilter.nucleus.desktop.application.dsl.TargetFormat`). Only the
+Maven coordinates and the plugin id use the `com.seanproctor` group.
+## Minimal Configuration
+
+```kotlin
+nucleus.application {
+    mainClass = "com.example.MainKt"
+
+    nativeDistributions {
+        targetFormats(TargetFormat.Dmg, TargetFormat.Nsis, TargetFormat.Deb)
+        packageName = "MyApp"
+        packageVersion = "1.0.0"
+    }
+}
+```
+
+## Gradle Tasks
+
+### Development
+
+| Task | Description |
+|------|-------------|
+| `run` | Run the application from the IDE/terminal |
+| `runDistributable` | Run the packaged application image |
+
+#### Compose Hot Reload
+
+Nucleus is fully compatible with [Compose Hot Reload](https://kotlinlang.org/docs/multiplatform/compose-hot-reload.html). Since Nucleus extends the Compose plugin (not replaces it), Hot Reload works out of the box.
+
+The `hotRun` task reads `mainClass` from the `compose.desktop.application` block. If you only set it in `nucleus.application`, add a minimal Compose block:
+
+```kotlin
+compose.desktop.application {
+    mainClass = "com.example.MainKt"
+}
+```
+
+Or pass it via the command line:
+
+```bash
+./gradlew hotRun -PmainClass=com.example.MainKt
+```
+
+### Packaging
+
+| Task | Description |
+|------|-------------|
+| `packageDistributionForCurrentOS` | Build all configured formats for the current OS |
+| `package<Format>` | Build a specific format (e.g., `packageDmg`, `packageNsis`, `packageDeb`) |
+| `packageReleaseDistributionForCurrentOS` | Same as above with ProGuard release build |
+| `createDistributable` | Create the application image without an installer |
+| `createReleaseDistributable` | Same with ProGuard |
+
+### Utility
+
+| Task | Description |
+|------|-------------|
+| `suggestModules` | Suggest JDK modules required by your dependencies |
+| `packageUberJarForCurrentOS` | Create a single fat JAR with all dependencies |
+
+### Running a Specific Task
+
+```bash
+# Build a DMG on macOS
+./gradlew packageDmg
+
+# Build NSIS installer on Windows
+./gradlew packageNsis
+
+# Build DEB package on Linux
+./gradlew packageDeb
+
+# Build all formats for current OS
+./gradlew packageDistributionForCurrentOS
+
+# Release build (with ProGuard)
+./gradlew packageReleaseDistributionForCurrentOS
+```
+
+## Output Location
+
+Build artifacts are generated in:
+
+```
+build/compose/binaries/main/<format>/
+build/compose/binaries/main-release/<format>/   # Release builds
+```
+
+Override with:
+
+```kotlin
+nativeDistributions {
+    outputBaseDir.set(project.layout.buildDirectory.dir("custom-output"))
+}
+```
+
+## JDK Modules
+
+The plugin does not automatically detect required JDK modules. Use `suggestModules` to identify them:
+
+```bash
+./gradlew suggestModules
+```
+
+Then declare them in the DSL:
+
+```kotlin
+nativeDistributions {
+    modules("java.sql", "java.net.http", "jdk.accessibility")
+}
+```
+
+Or include everything (larger binary):
+
+```kotlin
+nativeDistributions {
+    includeAllModules = true
+}
+```
+
+## Application Icons
+
+Provide platform-specific icon files:
+
+```kotlin
+nativeDistributions {
+    macOS {
+        iconFile.set(project.file("icons/app.icns"))
+    }
+    windows {
+        iconFile.set(project.file("icons/app.ico"))
+    }
+    linux {
+        iconFile.set(project.file("icons/app.png"))
+    }
+}
+```
+
+| Platform | Format | Recommended Size |
+|----------|--------|------------------|
+| macOS | `.icns` | 1024x1024 |
+| Windows | `.ico` | 256x256 |
+| Linux | `.png` | 512x512 |
+
+## Application Resources
+
+Include extra files in the installation directory via `appResourcesRootDir`:
+
+```kotlin
+nativeDistributions {
+    appResourcesRootDir.set(project.layout.projectDirectory.dir("resources"))
+}
+```
+
+Resource directory structure:
+
+```
+resources/
+  common/          # Included on all platforms
+  macos/           # macOS only
+  macos-arm64/     # macOS Apple Silicon only
+  macos-x64/       # macOS Intel only
+  windows/         # Windows only
+  linux/           # Linux only
+```
+
+Access at runtime:
+
+```kotlin
+val resourcesDir = File(System.getProperty("compose.application.resources.dir"))
+```
+
+## Next Steps
+
+- [Configuration](configuration.md) — Full DSL reference
+- [macOS](targets/macos.md) / [Windows](targets/windows.md) / [Linux](targets/linux.md) — Platform-specific options
+- [CI/CD](ci-cd.md) — Automate builds with GitHub Actions
+
+---
+
+# Configuration
+
+All Nucleus configuration lives inside the `nucleus.application { }` block in your `build.gradle.kts`.
+
+## Overview
+
+```kotlin
+nucleus.application {
+    mainClass = "com.example.MainKt"
+    jvmArgs += listOf("-Xmx512m")
+
+    buildTypes {
+        release {
+            proguard {
+                isEnabled = true
+                optimize = true
+                obfuscate.set(false)
+                configurationFiles.from(project.file("proguard-rules.pro"))
+            }
+        }
+    }
+
+    nativeDistributions {
+        // Target formats
+        targetFormats(TargetFormat.Dmg, TargetFormat.Nsis, TargetFormat.Deb)
+
+        // Package metadata
+        appName = "My App"     // Display name (installer, .desktop, Start Menu)
+        packageName = "MyApp"  // Technical name (executable, package file)
+        packageVersion = "1.0.0"
+        description = "My awesome desktop app"
+        vendor = "My Company"
+        copyright = "Copyright 2025 My Company"
+        homepage = "https://myapp.example.com"
+        licenseFile.set(project.file("LICENSE"))
+
+        // JDK modules
+        modules("java.sql", "java.net.http")
+
+        // Nucleus features
+        cleanupNativeLibs = true
+        enableAotCache = true
+        splashImage = "splash.png"
+        compressionLevel = CompressionLevel.Maximum
+        artifactName = "${name}-${version}-${os}-${arch}.${ext}"
+
+        // Deep links & file associations
+        protocol("MyApp", "myapp")
+        fileAssociation(
+            mimeType = "application/x-myapp",
+            extension = "myapp",
+            description = "MyApp Document",
+        )
+
+        // Publishing
+        publish { /* ... */ }
+
+        // Platform-specific
+        macOS { /* ... */ }
+        windows { /* ... */ }
+        linux { /* ... */ }
+    }
+}
+```
+
+## Target Formats
+
+All available formats:
+
+| Format | Platform | Task Name | Notes |
+|--------|----------|-----------|-------|
+| `TargetFormat.Dmg` | macOS | `packageDmg` | |
+| `TargetFormat.Pkg` | macOS | `packagePkg` | |
+| `TargetFormat.Nsis` | Windows | `packageNsis` | NSIS installer (`.exe`) |
+| `TargetFormat.Exe` | Windows | `packageExe` | Alias for `Nsis` — same output |
+| `TargetFormat.NsisWeb` | Windows | `packageNsisWeb` | NSIS web installer |
+| `TargetFormat.Msi` | Windows | `packageMsi` | |
+| `TargetFormat.Portable` | Windows | `packagePortable` | |
+| `TargetFormat.AppX` | Windows | `packageAppX` | MSIX format |
+| `TargetFormat.Deb` | Linux | `packageDeb` | |
+| `TargetFormat.Rpm` | Linux | `packageRpm` | |
+| `TargetFormat.AppImage` | Linux | `packageAppImage` | |
+| `TargetFormat.Snap` | Linux | `packageSnap` | |
+| `TargetFormat.Flatpak` | Linux | `packageFlatpak` | |
+| `TargetFormat.Zip` | All | `packageZip` | |
+| `TargetFormat.Tar` | All | `packageTar` | |
+| `TargetFormat.SevenZ` | All | `packageSevenZ` | |
+
+Target all formats at once:
+
+```kotlin
+targetFormats(*TargetFormat.entries.toTypedArray())
+```
+
+## Package Metadata
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `appName` | `String?` | `null` | Human-readable display name (installer title, `.desktop` Name, Start Menu). Falls back to `packageName` if not set. |
+| `packageName` | `String` | Gradle project name | Technical package/executable name. On Linux this should be lowercase (e.g. `zayit`). |
+| `packageVersion` | `String` | Gradle project version | Application version |
+| `description` | `String?` | `null` | Short application description |
+| `vendor` | `String?` | `null` | Publisher / company name |
+| `copyright` | `String?` | `null` | Copyright notice |
+| `homepage` | `String?` | `null` | Application homepage URL. **Required** for Linux DEB packaging (electron-builder enforces this). |
+| `licenseFile` | `RegularFileProperty` | — | Path to the license file |
+| `appResourcesRootDir` | `DirectoryProperty` | — | Root directory for bundled resources |
+| `outputBaseDir` | `DirectoryProperty` | `build/compose/binaries` | Output directory for built packages |
+
+### Version Formats
+
+Different platforms have different version requirements:
+
+| Platform | Format | Example |
+|----------|--------|---------|
+| macOS | `MAJOR.MINOR.PATCH` | `1.2.3` |
+| Windows | `MAJOR.MINOR.BUILD` | `1.2.3` |
+| Linux DEB | `[EPOCH:]UPSTREAM[-REVISION]` | `1.2.3` |
+| Linux RPM | No dashes | `1.2.3` |
+
+## Nucleus-Specific Features
+
+### Native Library Cleanup
+
+Strips `.dll`, `.so`, `.dylib` files for non-target platforms from dependency JARs, reducing package size significantly.
+
+```kotlin
+nativeDistributions {
+    cleanupNativeLibs = true
+}
+```
+
+### AOT Cache (JDK 25+)
+
+Generates an ahead-of-time compilation cache for faster startup:
+
+```kotlin
+nativeDistributions {
+    enableAotCache = true
+}
+```
+
+Requires JDK 25+ and that the application self-terminates during the training run.
+
+### Splash Screen
+
+Displays a splash screen during application startup:
+
+```kotlin
+nativeDistributions {
+    splashImage = "splash.png" // Relative to appResources
+}
+```
+
+### Artifact Naming
+
+Customize output filenames with template variables:
+
+```kotlin
+nativeDistributions {
+    artifactName = "${name}-${version}-${os}-${arch}.${ext}"
+}
+```
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `${name}` | Package name | `MyApp` |
+| `${version}` | Package version | `1.0.0` |
+| `${os}` | Operating system | `macos`, `windows`, `linux` |
+| `${arch}` | Architecture | `amd64`, `arm64` |
+| `${ext}` | File extension | `dmg`, `exe`, `deb` |
+
+### Compression Level
+
+Controls compression for electron-builder formats:
+
+```kotlin
+nativeDistributions {
+    compressionLevel = CompressionLevel.Maximum
+}
+```
+
+| Level | Description |
+|-------|-------------|
+| `CompressionLevel.Store` | No compression |
+| `CompressionLevel.Normal` | Balanced (default) |
+| `CompressionLevel.Maximum` | Best compression (recommended for most formats) |
+
+**AppImage and Maximum Compression:** Using `CompressionLevel.Maximum` with AppImage causes extremely slow startup times (60s+)
+due to squashfs/FUSE decompression overhead. For AppImage targets, use `Normal` or `Store` instead.
+Other formats (DMG, NSIS, DEB, RPM, etc.) are not affected.
+See [electron-builder#7483](https://github.com/electron-userland/electron-builder/issues/7483) for details.
+### Trusted CA Certificates
+
+Import custom CA certificates into the bundled JVM's `cacerts` keystore at build time.
+Useful for corporate proxies, VPN gateways, or filtering services that use a private root CA.
+
+```kotlin
+nativeDistributions {
+    trustedCertificates.from(files(
+        "certs/company-proxy-ca.pem",
+    ))
+}
+```
+
+Both PEM and DER formats are accepted. See [Trusted CA Certificates](trusted-certificates.md) for full details.
+
+### Deep Links (Protocol Handler)
+
+Register a custom URL protocol across all platforms:
+
+```kotlin
+nativeDistributions {
+    protocol("MyApp", "myapp")
+    // Registers myapp:// protocol
+}
+```
+
+- **macOS**: `CFBundleURLTypes` in `Info.plist`
+- **Windows**: Registry entries via NSIS/MSI
+- **Linux**: `MimeType` in `.desktop` file
+
+This registers the protocol at the OS level; handling the incoming deep link at runtime is up to your application.
+
+### File Associations
+
+Register file type associations:
+
+```kotlin
+nativeDistributions {
+    fileAssociation(
+        mimeType = "application/x-myapp",
+        extension = "myapp",
+        description = "MyApp Document",
+    )
+}
+```
+
+The cross-platform `fileAssociation()` method also accepts per-platform icon files:
+
+```kotlin
+fileAssociation(
+    mimeType = "application/x-myapp",
+    extension = "myapp",
+    description = "MyApp Document",
+    linuxIconFile = project.file("icons/file.png"),
+    windowsIconFile = project.file("icons/file.ico"),
+    macOSIconFile = project.file("icons/file.icns"),
+)
+```
+
+Multiple associations are supported by calling `fileAssociation()` multiple times.
+
+## ProGuard (Release Builds)
+
+```kotlin
+buildTypes {
+    release {
+        proguard {
+            version = "7.8.1"
+            isEnabled = true
+            optimize = true
+            obfuscate.set(false)  // Disabled by default
+            joinOutputJars.set(true)
+            configurationFiles.from(project.file("proguard-rules.pro"))
+        }
+    }
+}
+```
+
+Release build tasks are suffixed with `Release`:
+
+```bash
+./gradlew packageReleaseDmg
+./gradlew packageReleaseNsis
+./gradlew packageReleaseDistributionForCurrentOS
+```
+
+## Full DSL Tree
+
+```
+nucleus.application {
+    mainClass
+    jvmArgs
+    buildTypes {
+        release {
+            proguard { isEnabled, version, optimize, obfuscate, joinOutputJars, configurationFiles }
+        }
+    }
+    nativeDistributions {
+        targetFormats(...)
+        appName, packageName, packageVersion, description, vendor, copyright, homepage
+        licenseFile, appResourcesRootDir, outputBaseDir
+        modules(...), includeAllModules
+        cleanupNativeLibs, enableAotCache, splashImage
+        compressionLevel, artifactName
+        protocol(name, vararg schemes)
+        fileAssociation(mimeType, extension, description, linuxIconFile?, windowsIconFile?, macOSIconFile?)
+        publish { github , s3 , generic  }
+        macOS { iconFile, bundleID, dockName, appCategory, layeredIconDir, signing , notarization , dmg , infoPlist  }
+        windows { iconFile, upgradeUuid, signing , nsis , appx  }
+        linux { iconFile, debMaintainer, debDepends, rpmRequires, appImage , snap , flatpak  }
+    }
+}
+```
+
+## Next Steps
+
+- Platform-specific configuration: [macOS](targets/macos.md) · [Windows](targets/windows.md) · [Linux](targets/linux.md)
+- [Code Signing](code-signing.md) — Sign and notarize your app
+- [Publishing](publishing.md) — Distribute via GitHub Releases, S3, or generic HTTP server
+
+---
+
+# Migration from org.jetbrains.compose
+
+Nucleus is a drop-in extension of the official JetBrains Compose Desktop plugin. All existing configuration is preserved — Nucleus only adds new capabilities.
+
+## Step 1: Add the Plugin
+
+```diff
+ plugins {
+     id("org.jetbrains.kotlin.jvm") version "2.3.10"
+     id("org.jetbrains.kotlin.plugin.compose") version "2.3.10"
+     id("org.jetbrains.compose") version "1.10.1"
++    id("com.seanproctor.nucleus") version "1.15.11"
+ }
+```
+
+> The official `org.jetbrains.compose` plugin remains — Nucleus extends it, not replaces it.
+
+The plugin is published to Maven Central, so make sure `mavenCentral()` is in your `pluginManagement.repositories`:
+
+```kotlin
+// settings.gradle.kts
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+```
+
+## Step 2: Update Imports
+
+Replace the JetBrains Compose DSL imports with the Nucleus equivalents:
+
+```diff
+-import org.jetbrains.compose.desktop.application.dsl.TargetFormat
++import io.github.kdroidfilter.nucleus.desktop.application.dsl.TargetFormat
+```
+
+This applies to all DSL types used in your `build.gradle.kts` (e.g. `TargetFormat`, `CompressionLevel`, `SigningAlgorithm`, etc.).
+
+## Step 3: Use the Nucleus DSL
+
+Replace the `compose.desktop.application` block with `nucleus.application` for packaging and distribution:
+
+```diff
+-compose.desktop.application {
++nucleus.application {
+     mainClass = "com.example.MainKt"
+
+     nativeDistributions {
+         targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+         packageName = "MyApp"
+         packageVersion = "1.0.0"
+
+         macOS {
+             bundleID = "com.example.myapp"
+             iconFile.set(project.file("icons/app.icns"))
+         }
+
+         windows {
+             iconFile.set(project.file("icons/app.ico"))
+         }
+
+         linux {
+             iconFile.set(project.file("icons/app.png"))
+         }
+     }
+ }
+```
+
+**Using Compose Hot Reload?:** Some Compose plugin tasks (like `hotRun`) read `mainClass` from the original `compose.desktop.application` block, not from `nucleus.application`. If you use [Compose Hot Reload](https://kotlinlang.org/docs/multiplatform/compose-hot-reload.html), either keep a minimal Compose block alongside Nucleus:
+    ```kotlin
+    compose.desktop.application {
+        mainClass = "com.example.MainKt"
+    }
+    ```
+
+    Or pass the property explicitly when running:
+
+    ```bash
+    ./gradlew hotRun -PmainClass=com.example.MainKt
+    ```
+
+## Step 4: Add Nucleus Features (Optional)
+
+Enable the features you need. All are opt-in:
+
+```kotlin
+nucleus.application {
+    mainClass = "com.example.MainKt"
+
+    nativeDistributions {
+        targetFormats(TargetFormat.Dmg, TargetFormat.Nsis, TargetFormat.Deb)
+        packageName = "MyApp"
+        packageVersion = "1.0.0"
+
+        // --- New Nucleus features ---
+        cleanupNativeLibs = true
+        enableAotCache = true
+        splashImage = "splash.png"
+        compressionLevel = CompressionLevel.Maximum
+        artifactName = "${name}-${version}-${os}-${arch}.${ext}"
+
+        // Deep links
+        protocol("MyApp", "myapp")
+
+        // File associations
+        fileAssociation(
+            mimeType = "application/x-myapp",
+            extension = "myapp",
+            description = "MyApp Document",
+        )
+
+        // New Linux targets
+        targetFormats(
+            TargetFormat.Dmg, TargetFormat.Nsis, TargetFormat.Deb,
+            TargetFormat.AppImage, TargetFormat.Snap, TargetFormat.Flatpak, // NEW
+        )
+
+        // Publishing
+        publish {
+            github {
+                enabled = true
+                owner = "myorg"
+                repo = "myapp"
+            }
+        }
+
+        // NSIS customization
+        windows {
+            nsis {
+                oneClick = false
+                allowToChangeInstallationDirectory = true
+                createDesktopShortcut = true
+            }
+        }
+    }
+}
+```
+
+## What Changes
+
+| Feature | Before (compose) | After (nucleus)                                                                                                                       |
+|---------|-------------------|---------------------------------------------------------------------------------------------------------------------------------------|
+| DSL entry point | `compose.desktop.application` | `nucleus.application`                                                                                                                 |
+| DSL imports | `org.jetbrains.compose.desktop.application.dsl.*` | `io.github.kdroidfilter.nucleus.desktop.application.dsl.*`                                                                            |
+| Target formats | DMG, PKG, MSI, EXE, DEB, RPM | + NSIS, AppX, Portable, AppImage, Snap, Flatpak, archives                                                                             |
+| Native lib cleanup | Manual | `cleanupNativeLibs = true`                                                                                                            |
+| AOT cache | Not available | `enableAotCache = true`                                                                                                               |
+| Splash screen | Manual | `splashImage = "splash.png"`                                                                                                          |
+| Deep links | Manual (macOS only via Info.plist) | Cross-platform `protocol("name", "scheme")`                                                                                           |
+| File associations | Limited | Cross-platform `fileAssociation()`                                                                                                    |
+| NSIS config | Not available | Full `nsis { }` DSL                                                                                                                   |
+| AppX config | Not available | Full `appx { }` DSL                                                                                                                   |
+| Snap config | Not available | Full `snap { }` DSL                                                                                                                   |
+| Flatpak config | Not available | Full `flatpak { }` DSL                                                                                                                |
+| Store pipeline | Not available | Automatic dual pipeline for store formats (PKG, AppX, Flatpak) with sandboxing for PKG and Flatpak                                    |
+| Auto-update | Not available | Built-in with YML metadata                                                                                                            |
+| Code signing | macOS only | + Windows PFX / Azure Artifact Signing                                                                                                |
+| DMG appearance | Not customizable (jpackage defaults) | Full `dmg { }` DSL: background, icon size, window layout, content positioning, format ([details](targets/macos.md#dmg-customization)) |
+| Artifact naming | Fixed | Template with `artifactName`                                                                                                          |
+
+## Important Differences from Compose Desktop
+
+### `homepage` is Required for Linux DEB
+
+Unlike Compose Desktop (which uses jpackage), Nucleus uses electron-builder for packaging. Electron-builder **requires** the `homepage` property when building DEB packages. Without it, the build will fail with:
+
+```
+Please specify project homepage, see https://electron.build/configuration
+```
+
+Make sure to set it in your `nativeDistributions` block:
+
+```kotlin
+nativeDistributions {
+    homepage = "https://myapp.example.com"
+}
+```
+
+This also applies to GraalVM native image packaging (`packageGraalvmDeb`).
+
+## What Stays the Same
+
+Everything from the official plugin works unchanged:
+
+- `mainClass`, `jvmArgs`
+- `nativeDistributions` block (metadata, icons, resources)
+- `buildTypes` / ProGuard configuration
+- `modules()` / `includeAllModules`
+- All existing Gradle tasks (`run`, `packageDmg`, `packageDeb`, etc.)
+- `compose.desktop.currentOs` dependency
+- Source set configuration
+- [Compose Hot Reload](https://kotlinlang.org/docs/multiplatform/compose-hot-reload.html) — works as usual since Nucleus extends the Compose plugin. Note: `hotRun` reads `mainClass` from `compose.desktop.application`, so set it there too or pass `-PmainClass=...` (see [Step 3](#step-3-use-the-nucleus-dsl))
+
+---
+
+## Documentation
+
+- [Getting Started](https://github.com/sproctor/nucleus-plugin/getting-started/)
+- [Configuration](https://github.com/sproctor/nucleus-plugin/configuration/)
+- [macOS Targets](https://github.com/sproctor/nucleus-plugin/targets/macos/)
+- [Windows Targets](https://github.com/sproctor/nucleus-plugin/targets/windows/)
+- [Linux Targets](https://github.com/sproctor/nucleus-plugin/targets/linux/)
+- [Sandboxing](https://github.com/sproctor/nucleus-plugin/sandboxing/)
+- [Code Signing](https://github.com/sproctor/nucleus-plugin/code-signing/)
+- [Auto Update](https://github.com/sproctor/nucleus-plugin/auto-update/)
+- [Publishing](https://github.com/sproctor/nucleus-plugin/publishing/)
+- [Trusted CA Certificates](https://github.com/sproctor/nucleus-plugin/trusted-certificates/)
+- [GraalVM Native Image](https://github.com/sproctor/nucleus-plugin/graalvm/index/)
+- [Configuration](https://github.com/sproctor/nucleus-plugin/graalvm/configuration/)
+- [Automatic Metadata Resolution](https://github.com/sproctor/nucleus-plugin/graalvm/automatic-metadata/)
+- [Runtime Bootstrap](https://github.com/sproctor/nucleus-plugin/graalvm/runtime-bootstrap/)
+- [Tasks & CI/CD](https://github.com/sproctor/nucleus-plugin/graalvm/tasks-ci/)
+- [Nucleus Native Access](https://github.com/sproctor/nucleus-plugin/native-access/index/)
+- [Supported Types](https://github.com/sproctor/nucleus-plugin/native-access/types/)
+- [Usage & Patterns](https://github.com/sproctor/nucleus-plugin/native-access/usage/)
+- [CI/CD](https://github.com/sproctor/nucleus-plugin/ci-cd/)
+- [Packaging](https://github.com/sproctor/nucleus-plugin/comparison/packaging/)
+- [Migration from org.jetbrains.compose](https://github.com/sproctor/nucleus-plugin/migration/)
+- [Roadmap](https://github.com/sproctor/nucleus-plugin/roadmap/)
+
+## Full LLM Documentation
+
+- [llms-full.txt](https://github.com/sproctor/nucleus-plugin/llms-full.txt): Complete documentation in a single file
+

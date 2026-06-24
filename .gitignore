@@ -1,0 +1,24 @@
+*.iml
+.DS_Store
+.gradle
+/local.properties
+/.idea
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+build
+.kotlin
+site
+
+# Claude Code per-user settings
+.claude/settings.local.json
+
+# Native libraries (built on CI via build-natives.yaml)
+**/src/main/resources/nucleus/native/
+
+# MSVC build artifacts
+*.obj
+*.exp

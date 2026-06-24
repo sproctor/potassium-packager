@@ -1,0 +1,112 @@
+site_name: Nucleus Gradle Plugin
+site_description: A Gradle plugin for packaging Compose/JVM desktop apps — installers (deb/rpm/AppImage/snap/flatpak, msi/exe/appx, dmg/pkg), code signing, auto-update, and GraalVM native-image builds on macOS, Windows, and Linux
+site_url: https://github.com/sproctor/nucleus-plugin
+repo_url: https://github.com/sproctor/nucleus-plugin
+repo_name: sproctor/nucleus-plugin
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.action.edit
+  favicon: assets/favicon.png
+  logo: assets/favicon.png
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Configuration: configuration.md
+  - Targets:
+      - macOS: targets/macos.md
+      - Windows: targets/windows.md
+      - Linux: targets/linux.md
+  - Features:
+      - Sandboxing: sandboxing.md
+      - Code Signing: code-signing.md
+      - Auto Update: auto-update.md
+      - Publishing: publishing.md
+      - Trusted CA Certificates: trusted-certificates.md
+      - GraalVM Native Image:
+          - Overview: graalvm/index.md
+          - Configuration: graalvm/configuration.md
+          - Automatic Metadata: graalvm/automatic-metadata.md
+          - Runtime Bootstrap: graalvm/runtime-bootstrap.md
+          - Tasks & CI/CD: graalvm/tasks-ci.md
+      - Native Access:
+          - Overview: native-access/index.md
+          - Supported Types: native-access/types.md
+          - Usage & Patterns: native-access/usage.md
+      - CI/CD: ci-cd.md
+  - Comparison:
+      - Packaging: comparison/packaging.md
+  - Migration: migration.md
+  - Roadmap: roadmap.md
+  - Changelog: changelog.md
+  - LLM Documentation: llm.md
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.snippets
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+extra_css:
+  - stylesheets/extra.css
+
+copyright: Made with ❤️ by <a href="https://eliegambache.kdroidfilter.com/" target="_blank">Elie Gambache</a> - KdroidFilter
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/sproctor/nucleus-plugin
