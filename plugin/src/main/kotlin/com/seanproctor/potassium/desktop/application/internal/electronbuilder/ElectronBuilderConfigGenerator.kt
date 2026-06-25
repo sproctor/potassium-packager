@@ -33,14 +33,16 @@ internal class ElectronBuilderConfigGenerator {
      * Generates the electron-builder config YAML content.
      *
      * @param distributions The JVM application distribution settings from the DSL.
-     * @param targetFormat The specific target format being built.
+     * @param targetFormats The target formats being built in this (single) electron-builder
+     *   invocation. All formats belong to the current OS and are emitted as a multi-target
+     *   `<platform>.target` array plus their per-format option blocks.
      * @param appImageDir The prepackaged app-image directory from jpackage.
      * @return The YAML configuration content as a string.
      */
     @Suppress("LongParameterList")
     fun generateConfig(
         distributions: JvmApplicationDistributions,
-        targetFormat: TargetFormat,
+        targetFormats: List<TargetFormat>,
         @Suppress("unused") appImageDir: File,
         targetArch: Arch,
         startupWMClass: String? = null,
@@ -51,6 +53,10 @@ internal class ElectronBuilderConfigGenerator {
         dmgBackgroundOverride: File? = null,
         dmgWindowOverride: DmgWindowOverride? = null,
     ): String {
+        val formats = targetFormats.filter { it.isCompatibleWithCurrentOS }
+        require(formats.isNotEmpty()) {
+            "No target formats compatible with the current OS ($currentOS): $targetFormats"
+        }
         val yaml = StringBuilder()
 
         // --- Common settings ---
@@ -82,8 +88,10 @@ internal class ElectronBuilderConfigGenerator {
         yaml.appendLine("  output: .")
 
         appendIfNotNull(yaml, "compression", distributions.compressionLevel?.id)
-        yaml.appendLine("artifactName: ${withTargetSuffix(distributions.artifactName, targetFormat)}")
-        generateFileAssociations(yaml, distributions, targetFormat)
+        // Top-level (default) artifact name. Formats that share an extension (nsis/nsis-web/portable
+        // all produce .exe) override this with a disambiguating suffix in their own option block.
+        yaml.appendLine("artifactName: ${distributions.artifactName}")
+        generateFileAssociations(yaml, distributions)
 
         // Use per-platform winCodeSign archives on Windows to avoid extraction failures
         // caused by macOS symlinks in the legacy combo archive (electron-builder#8149).
@@ -95,12 +103,12 @@ internal class ElectronBuilderConfigGenerator {
         // --- Platform-specific config ---
         when (currentOS) {
             OS.MacOS ->
-                generateMacConfig(yaml, distributions, targetFormat, targetArch, dmgBackgroundOverride, dmgWindowOverride)
+                generateMacConfig(yaml, distributions, formats, targetArch, dmgBackgroundOverride, dmgWindowOverride)
             OS.Windows ->
                 generateWindowsConfig(
                     yaml,
                     distributions,
-                    targetFormat,
+                    formats,
                     targetArch,
                     windowsIconOverride,
                     executableName,
@@ -109,7 +117,7 @@ internal class ElectronBuilderConfigGenerator {
                 generateLinuxConfig(
                     yaml = yaml,
                     distributions = distributions,
-                    targetFormat = targetFormat,
+                    targetFormats = formats,
                     targetArch = targetArch,
                     startupWMClass = startupWMClass,
                     linuxIconOverride = linuxIconOverride,
@@ -139,15 +147,17 @@ internal class ElectronBuilderConfigGenerator {
     private fun generateMacConfig(
         yaml: StringBuilder,
         distributions: JvmApplicationDistributions,
-        targetFormat: TargetFormat,
+        targetFormats: List<TargetFormat>,
         targetArch: Arch,
         dmgBackgroundOverride: File? = null,
         windowOverride: DmgWindowOverride? = null,
     ) {
         yaml.appendLine("mac:")
         yaml.appendLine("  target:")
-        yaml.appendLine("    - target: ${targetFormat.id}")
-        yaml.appendLine("      arch: ${targetArch.id}")
+        for (target in targetFormats.map { it.id }.distinct()) {
+            yaml.appendLine("    - target: $target")
+            yaml.appendLine("      arch: ${targetArch.id}")
+        }
         appendIfNotNull(yaml, "  category", distributions.macOS.appCategory)
         appendIfNotNull(
             yaml,
@@ -165,22 +175,21 @@ internal class ElectronBuilderConfigGenerator {
             yaml.appendLine("  gatekeeperAssess: false")
         }
 
-        when (targetFormat) {
-            TargetFormat.Dmg -> generateDmgConfig(yaml, distributions.macOS.dmg, dmgBackgroundOverride, windowOverride)
-            TargetFormat.Pkg -> {
-                yaml.appendLine("pkg:")
-                appendIfNotNull(yaml, "  installLocation", distributions.macOS.installationPath)
-                yaml.appendLine("  isRelocatable: false")
-                if (distributions.macOS.signing.sign.orNull != true) {
-                    yaml.appendLine("  identity: null")
-                } else {
-                    val installerIdentity = resolveInstallerIdentity(distributions.macOS)
-                    if (installerIdentity != null) {
-                        yaml.appendLine("  identity: \"$installerIdentity\"")
-                    }
+        if (TargetFormat.Dmg in targetFormats) {
+            generateDmgConfig(yaml, distributions.macOS.dmg, dmgBackgroundOverride, windowOverride)
+        }
+        if (TargetFormat.Pkg in targetFormats) {
+            yaml.appendLine("pkg:")
+            appendIfNotNull(yaml, "  installLocation", distributions.macOS.installationPath)
+            yaml.appendLine("  isRelocatable: false")
+            if (distributions.macOS.signing.sign.orNull != true) {
+                yaml.appendLine("  identity: null")
+            } else {
+                val installerIdentity = resolveInstallerIdentity(distributions.macOS)
+                if (installerIdentity != null) {
+                    yaml.appendLine("  identity: \"$installerIdentity\"")
                 }
             }
-            else -> {}
         }
     }
 
@@ -252,15 +261,17 @@ internal class ElectronBuilderConfigGenerator {
     private fun generateWindowsConfig(
         yaml: StringBuilder,
         distributions: JvmApplicationDistributions,
-        targetFormat: TargetFormat,
+        targetFormats: List<TargetFormat>,
         targetArch: Arch,
         windowsIconOverride: File?,
         executableName: String?,
     ) {
         yaml.appendLine("win:")
         yaml.appendLine("  target:")
-        yaml.appendLine("    - target: ${targetFormat.electronBuilderTarget}")
-        yaml.appendLine("      arch: ${targetArch.id}")
+        for (target in targetFormats.map { it.electronBuilderTarget }.distinct()) {
+            yaml.appendLine("    - target: $target")
+            yaml.appendLine("      arch: ${targetArch.id}")
+        }
         appendIfNotNull(yaml, "  executableName", executableName)
         val windowsIcon =
             distributions.windows.iconFile.orNull
@@ -273,23 +284,31 @@ internal class ElectronBuilderConfigGenerator {
 
         generateWindowsSigningConfig(yaml, distributions)
 
-        when (targetFormat) {
-            TargetFormat.Nsis, TargetFormat.Exe -> {
-                yaml.appendLine("nsis:")
-                generateNsisSettings(yaml, distributions.windows.nsis, "  ")
+        if (TargetFormat.Nsis in targetFormats || TargetFormat.Exe in targetFormats) {
+            yaml.appendLine("nsis:")
+            // Nsis shares the .exe extension with portable/nsis-web; suffix it so the batched
+            // outputs don't collide. The plain Exe installer keeps the base (unsuffixed) name.
+            if (TargetFormat.Nsis in targetFormats) {
+                appendArtifactName(yaml, distributions.artifactName, TargetFormat.Nsis, "  ")
             }
-            TargetFormat.NsisWeb -> {
-                yaml.appendLine("nsisWeb:")
-                generateNsisSettings(yaml, distributions.windows.nsis, "  ")
-            }
-            TargetFormat.Msi -> {
-                yaml.appendLine("msi:")
-                appendIfNotNull(yaml, "  upgradeCode", distributions.windows.upgradeUuid)
-                yaml.appendLine("  perMachine: ${!distributions.windows.perUserInstall}")
-            }
-            TargetFormat.AppX -> generateAppXConfig(yaml, distributions.windows.appx)
-            TargetFormat.Portable -> yaml.appendLine("portable: {}")
-            else -> {}
+            generateNsisSettings(yaml, distributions.windows.nsis, "  ")
+        }
+        if (TargetFormat.NsisWeb in targetFormats) {
+            yaml.appendLine("nsisWeb:")
+            appendArtifactName(yaml, distributions.artifactName, TargetFormat.NsisWeb, "  ")
+            generateNsisSettings(yaml, distributions.windows.nsis, "  ")
+        }
+        if (TargetFormat.Msi in targetFormats) {
+            yaml.appendLine("msi:")
+            appendIfNotNull(yaml, "  upgradeCode", distributions.windows.upgradeUuid)
+            yaml.appendLine("  perMachine: ${!distributions.windows.perUserInstall}")
+        }
+        if (TargetFormat.AppX in targetFormats) {
+            generateAppXConfig(yaml, distributions.windows.appx)
+        }
+        if (TargetFormat.Portable in targetFormats) {
+            yaml.appendLine("portable:")
+            appendArtifactName(yaml, distributions.artifactName, TargetFormat.Portable, "  ")
         }
     }
 
@@ -327,19 +346,14 @@ internal class ElectronBuilderConfigGenerator {
     private fun generateFileAssociations(
         yaml: StringBuilder,
         distributions: JvmApplicationDistributions,
-        targetFormat: TargetFormat,
     ) {
+        // A single config covers all of the current OS's formats, so associations are platform-level.
+        // (Linux file associations are emitted as desktop-entry MimeType in appendLinuxDesktopEntryConfig.)
         val associations =
-            when (targetFormat) {
-                TargetFormat.Exe,
-                TargetFormat.Nsis,
-                TargetFormat.NsisWeb,
-                TargetFormat.Msi,
-                -> distributions.windows.fileAssociations
-                TargetFormat.Dmg,
-                TargetFormat.Pkg,
-                -> distributions.macOS.fileAssociations
-                else -> emptySet()
+            when (currentOS) {
+                OS.Windows -> distributions.windows.fileAssociations
+                OS.MacOS -> distributions.macOS.fileAssociations
+                OS.Linux -> emptySet()
             }
         if (associations.isEmpty()) return
 
@@ -362,22 +376,27 @@ internal class ElectronBuilderConfigGenerator {
         appendIfNotNull(yaml, "    icon", association.iconFile?.absolutePath)
     }
 
-    private fun withTargetSuffix(
+    /**
+     * Emits an `artifactName:` line (at [indent]) inside a format's option block, inserting a
+     * `-<id>` suffix before the extension. Used for formats that share an extension (nsis/nsis-web/
+     * portable all produce `.exe`) so that batching them into one invocation does not make their
+     * outputs overwrite each other.
+     */
+    private fun appendArtifactName(
+        yaml: StringBuilder,
         artifactName: String,
         targetFormat: TargetFormat,
-    ): String {
-        val template = artifactName
-        // Only add a format suffix for formats whose id differs from the file extension,
-        // to disambiguate formats sharing .exe (nsis, nsis-web, portable)
-        val needsSuffix = targetFormat in setOf(TargetFormat.Nsis, TargetFormat.NsisWeb, TargetFormat.Portable)
-        if (!needsSuffix) return template
+        indent: String,
+    ) {
         val marker = ".\${ext}"
         val suffix = "-${targetFormat.id}"
-        return if (template.contains(marker)) {
-            template.replace(marker, "$suffix$marker")
-        } else {
-            "$template$suffix"
-        }
+        val suffixed =
+            if (artifactName.contains(marker)) {
+                artifactName.replace(marker, "$suffix$marker")
+            } else {
+                "$artifactName$suffix"
+            }
+        yaml.appendLine("${indent}artifactName: $suffixed")
     }
 
     private fun generateNsisSettings(
@@ -503,7 +522,7 @@ internal class ElectronBuilderConfigGenerator {
     private fun generateLinuxConfig(
         yaml: StringBuilder,
         distributions: JvmApplicationDistributions,
-        targetFormat: TargetFormat,
+        targetFormats: List<TargetFormat>,
         targetArch: Arch,
         startupWMClass: String?,
         linuxIconOverride: File?,
@@ -512,8 +531,10 @@ internal class ElectronBuilderConfigGenerator {
     ) {
         yaml.appendLine("linux:")
         yaml.appendLine("  target:")
-        yaml.appendLine("    - target: ${targetFormat.electronBuilderTarget}")
-        yaml.appendLine("      arch: ${targetArch.id}")
+        for (target in targetFormats.map { it.electronBuilderTarget }.distinct()) {
+            yaml.appendLine("    - target: $target")
+            yaml.appendLine("      arch: ${targetArch.id}")
+        }
         appendIfNotNull(yaml, "  executableName", executableName)
         val linuxIcon =
             linuxIconOverride ?: distributions.linux.iconFile.orNull
@@ -529,30 +550,31 @@ internal class ElectronBuilderConfigGenerator {
         appendIfNotNull(yaml, "  description", distributions.description)
         appendLinuxDesktopEntryConfig(yaml, distributions, startupWMClass)
 
-        when (targetFormat) {
-            TargetFormat.Deb -> {
-                yaml.appendLine("deb:")
-                if (distributions.linux.debDepends.isNotEmpty()) {
-                    yaml.appendLine("  depends:")
-                    for (dep in distributions.linux.debDepends) {
-                        yaml.appendLine("    - \"$dep\"")
-                    }
+        if (TargetFormat.Deb in targetFormats) {
+            yaml.appendLine("deb:")
+            if (distributions.linux.debDepends.isNotEmpty()) {
+                yaml.appendLine("  depends:")
+                for (dep in distributions.linux.debDepends) {
+                    yaml.appendLine("    - \"$dep\"")
                 }
-                appendIfNotNull(yaml, "  afterInstall", linuxAfterInstallTemplate?.absolutePath)
             }
-            TargetFormat.Rpm -> {
-                yaml.appendLine("rpm:")
-                if (distributions.linux.rpmRequires.isNotEmpty()) {
-                    yaml.appendLine("  depends:")
-                    for (dep in distributions.linux.rpmRequires) {
-                        yaml.appendLine("    - \"$dep\"")
-                    }
+            appendIfNotNull(yaml, "  afterInstall", linuxAfterInstallTemplate?.absolutePath)
+        }
+        if (TargetFormat.Rpm in targetFormats) {
+            yaml.appendLine("rpm:")
+            if (distributions.linux.rpmRequires.isNotEmpty()) {
+                yaml.appendLine("  depends:")
+                for (dep in distributions.linux.rpmRequires) {
+                    yaml.appendLine("    - \"$dep\"")
                 }
-                appendIfNotNull(yaml, "  afterInstall", linuxAfterInstallTemplate?.absolutePath)
             }
-            TargetFormat.Snap -> generateSnapConfig(yaml, distributions.linux.snap)
-            TargetFormat.Flatpak -> generateFlatpakConfig(yaml, distributions.linux.flatpak)
-            else -> {}
+            appendIfNotNull(yaml, "  afterInstall", linuxAfterInstallTemplate?.absolutePath)
+        }
+        if (TargetFormat.Snap in targetFormats) {
+            generateSnapConfig(yaml, distributions.linux.snap)
+        }
+        if (TargetFormat.Flatpak in targetFormats) {
+            generateFlatpakConfig(yaml, distributions.linux.flatpak)
         }
     }
 

@@ -189,7 +189,7 @@ potassium {
 | Task | How |
 |------|-----|
 | `createDistributable` / `createSandboxedDistributable` | Launcher patched in the app bundle before signing |
-| `packageDmg` / `packagePkg` | Derived from the patched distributable |
+| `packageMacOS` / `packagePkg` | Derived from the patched distributable |
 | `runDistributable` | Runs the patched app bundle |
 | `run` | Uses a cached patched copy of the JVM binary |
 

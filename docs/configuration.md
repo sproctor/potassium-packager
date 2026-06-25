@@ -65,26 +65,32 @@ potassium.application {
 
 ## Target Formats
 
-All available formats:
+All of the current OS's non-store formats are built in a **single** electron-builder invocation by
+one per-platform task: `packageMacOS`, `packageWindows`, or `packageLinux`. Store formats (PKG,
+AppX, Flatpak) need their own sandboxed app and signing, so each keeps its own task.
 
-| Format | Platform | Task Name | Notes |
-|--------|----------|-----------|-------|
-| `TargetFormat.Dmg` | macOS | `packageDmg` | |
-| `TargetFormat.Pkg` | macOS | `packagePkg` | |
-| `TargetFormat.Nsis` | Windows | `packageNsis` | NSIS installer (`.exe`) |
-| `TargetFormat.Exe` | Windows | `packageExe` | Alias for `Nsis` — same output |
-| `TargetFormat.NsisWeb` | Windows | `packageNsisWeb` | NSIS web installer |
-| `TargetFormat.Msi` | Windows | `packageMsi` | |
-| `TargetFormat.Portable` | Windows | `packagePortable` | |
-| `TargetFormat.AppX` | Windows | `packageAppX` | MSIX format |
-| `TargetFormat.Deb` | Linux | `packageDeb` | |
-| `TargetFormat.Rpm` | Linux | `packageRpm` | |
-| `TargetFormat.AppImage` | Linux | `packageAppImage` | |
-| `TargetFormat.Snap` | Linux | `packageSnap` | |
-| `TargetFormat.Flatpak` | Linux | `packageFlatpak` | |
-| `TargetFormat.Zip` | All | `packageZip` | |
-| `TargetFormat.Tar` | All | `packageTar` | |
-| `TargetFormat.SevenZ` | All | `packageSevenZ` | |
+| Format | Platform | Built by | Notes |
+|--------|----------|----------|-------|
+| `TargetFormat.Dmg` | macOS | `packageMacOS` | |
+| `TargetFormat.Pkg` | macOS | `packagePkg` | App Store — built separately |
+| `TargetFormat.Nsis` | Windows | `packageWindows` | NSIS installer (`.exe`) |
+| `TargetFormat.Exe` | Windows | `packageWindows` | Alias for `Nsis` — same output |
+| `TargetFormat.NsisWeb` | Windows | `packageWindows` | NSIS web installer |
+| `TargetFormat.Msi` | Windows | `packageWindows` | |
+| `TargetFormat.Portable` | Windows | `packageWindows` | |
+| `TargetFormat.AppX` | Windows | `packageAppX` | MSIX — built separately |
+| `TargetFormat.Deb` | Linux | `packageLinux` | |
+| `TargetFormat.Rpm` | Linux | `packageLinux` | |
+| `TargetFormat.AppImage` | Linux | `packageLinux` | |
+| `TargetFormat.Snap` | Linux | `packageLinux` | |
+| `TargetFormat.Flatpak` | Linux | `packageFlatpak` | Built separately |
+| `TargetFormat.Zip` | All | `package<OS>` | |
+| `TargetFormat.Tar` | All | `package<OS>` | |
+| `TargetFormat.SevenZ` | All | `package<OS>` | |
+
+!!! note "One invocation per platform"
+    Configuring several formats for an OS (e.g. `Deb`, `Rpm`, `AppImage`) makes
+    `packageLinux` build them all in one electron-builder run, rather than one run per format.
 
 Target all formats at once:
 
@@ -273,8 +279,7 @@ buildTypes {
 Release build tasks are suffixed with `Release`:
 
 ```bash
-./gradlew packageReleaseDmg
-./gradlew packageReleaseNsis
+./gradlew packageReleaseMacOS    # or packageReleaseWindows / packageReleaseLinux
 ./gradlew packageReleaseDistributionForCurrentOS
 ```
 

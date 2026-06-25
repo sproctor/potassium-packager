@@ -182,7 +182,8 @@ Or pass it via the command line:
 | Task | Description |
 |------|-------------|
 | `packageDistributionForCurrentOS` | Build all configured formats for the current OS |
-| `package<Format>` | Build a specific format (e.g., `packageDmg`, `packageNsis`, `packageDeb`) |
+| `package<OS>` | Build all the current OS's non-store formats in one invocation (`packageMacOS` / `packageWindows` / `packageLinux`) |
+| `packagePkg` / `packageAppX` / `packageFlatpak` | Build a store format (each built separately) |
 | `packageReleaseDistributionForCurrentOS` | Same as above with ProGuard release build |
 | `createDistributable` | Create the application image without an installer |
 | `createReleaseDistributable` | Same with ProGuard |
@@ -197,16 +198,16 @@ Or pass it via the command line:
 ### Running a Specific Task
 
 ```bash
-# Build a DMG on macOS
-./gradlew packageDmg
+# Build all configured macOS formats (e.g. DMG + ZIP) in one invocation
+./gradlew packageMacOS
 
-# Build NSIS installer on Windows
-./gradlew packageNsis
+# Build all configured Windows formats (e.g. NSIS + MSI) in one invocation
+./gradlew packageWindows
 
-# Build DEB package on Linux
-./gradlew packageDeb
+# Build all configured Linux formats (e.g. DEB + RPM + AppImage) in one invocation
+./gradlew packageLinux
 
-# Build all formats for current OS
+# Build all formats for current OS (incl. store formats)
 ./gradlew packageDistributionForCurrentOS
 
 # Release build (with ProGuard)
@@ -381,27 +382,31 @@ potassium.application {
 
 ## Target Formats
 
-All available formats:
+All of the current OS's non-store formats are built in a **single** electron-builder invocation by
+one per-platform task: `packageMacOS`, `packageWindows`, or `packageLinux`. Store formats (PKG,
+AppX, Flatpak) need their own sandboxed app and signing, so each keeps its own task.
 
-| Format | Platform | Task Name | Notes |
-|--------|----------|-----------|-------|
-| `TargetFormat.Dmg` | macOS | `packageDmg` | |
-| `TargetFormat.Pkg` | macOS | `packagePkg` | |
-| `TargetFormat.Nsis` | Windows | `packageNsis` | NSIS installer (`.exe`) |
-| `TargetFormat.Exe` | Windows | `packageExe` | Alias for `Nsis` — same output |
-| `TargetFormat.NsisWeb` | Windows | `packageNsisWeb` | NSIS web installer |
-| `TargetFormat.Msi` | Windows | `packageMsi` | |
-| `TargetFormat.Portable` | Windows | `packagePortable` | |
-| `TargetFormat.AppX` | Windows | `packageAppX` | MSIX format |
-| `TargetFormat.Deb` | Linux | `packageDeb` | |
-| `TargetFormat.Rpm` | Linux | `packageRpm` | |
-| `TargetFormat.AppImage` | Linux | `packageAppImage` | |
-| `TargetFormat.Snap` | Linux | `packageSnap` | |
-| `TargetFormat.Flatpak` | Linux | `packageFlatpak` | |
-| `TargetFormat.Zip` | All | `packageZip` | |
-| `TargetFormat.Tar` | All | `packageTar` | |
-| `TargetFormat.SevenZ` | All | `packageSevenZ` | |
+| Format | Platform | Built by | Notes |
+|--------|----------|----------|-------|
+| `TargetFormat.Dmg` | macOS | `packageMacOS` | |
+| `TargetFormat.Pkg` | macOS | `packagePkg` | App Store — built separately |
+| `TargetFormat.Nsis` | Windows | `packageWindows` | NSIS installer (`.exe`) |
+| `TargetFormat.Exe` | Windows | `packageWindows` | Alias for `Nsis` — same output |
+| `TargetFormat.NsisWeb` | Windows | `packageWindows` | NSIS web installer |
+| `TargetFormat.Msi` | Windows | `packageWindows` | |
+| `TargetFormat.Portable` | Windows | `packageWindows` | |
+| `TargetFormat.AppX` | Windows | `packageAppX` | MSIX — built separately |
+| `TargetFormat.Deb` | Linux | `packageLinux` | |
+| `TargetFormat.Rpm` | Linux | `packageLinux` | |
+| `TargetFormat.AppImage` | Linux | `packageLinux` | |
+| `TargetFormat.Snap` | Linux | `packageLinux` | |
+| `TargetFormat.Flatpak` | Linux | `packageFlatpak` | Built separately |
+| `TargetFormat.Zip` | All | `package<OS>` | |
+| `TargetFormat.Tar` | All | `package<OS>` | |
+| `TargetFormat.SevenZ` | All | `package<OS>` | |
 
+**One invocation per platform:** Configuring several formats for an OS (e.g. `Deb`, `Rpm`, `AppImage`) makes
+`packageLinux` build them all in one electron-builder run, rather than one run per format.
 Target all formats at once:
 
 ```kotlin
@@ -587,8 +592,7 @@ buildTypes {
 Release build tasks are suffixed with `Release`:
 
 ```bash
-./gradlew packageReleaseDmg
-./gradlew packageReleaseNsis
+./gradlew packageReleaseMacOS    # or packageReleaseWindows / packageReleaseLinux
 ./gradlew packageReleaseDistributionForCurrentOS
 ```
 
@@ -774,6 +778,7 @@ potassium.application {
 |---------|-------------------|---------------------------------------------------------------------------------------------------------------------------------------|
 | DSL entry point | `compose.desktop.application` | `potassium.application`                                                                                                                 |
 | DSL imports | `org.jetbrains.compose.desktop.application.dsl.*` | `com.seanproctor.potassium.desktop.application.dsl.*`                                                                            |
+| Compose dependencies | `compose.desktop.currentOs`, `compose("…")` | Unchanged — keep using the official `org.jetbrains.compose` DSL. Potassium no longer re-exposes a `potassium.*` Compose-dependency accessor.                                          |
 | Target formats | DMG, PKG, MSI, EXE, DEB, RPM | + NSIS, AppX, Portable, AppImage, Snap, Flatpak, archives                                                                             |
 | Native lib cleanup | Manual | `cleanupNativeLibs = true`                                                                                                            |
 | AOT cache | Not available | `enableAotCache = true`                                                                                                               |
@@ -818,7 +823,7 @@ Everything from the official plugin works unchanged:
 - `nativeDistributions` block (metadata, icons, resources)
 - `buildTypes` / ProGuard configuration
 - `modules()` / `includeAllModules`
-- All existing Gradle tasks (`run`, `packageDmg`, `packageDeb`, etc.)
+- The standard Gradle tasks (`run`, `packageDistributionForCurrentOS`, the per-platform `packageMacOS` / `packageWindows` / `packageLinux`, etc.)
 - `compose.desktop.currentOs` dependency
 - Source set configuration
 - [Compose Hot Reload](https://kotlinlang.org/docs/multiplatform/compose-hot-reload.html) — works as usual since Potassium extends the Compose plugin. Note: `hotRun` reads `mainClass` from `compose.desktop.application`, so set it there too or pass `-PmainClass=...` (see [Step 3](#step-3-use-the-potassium-dsl))

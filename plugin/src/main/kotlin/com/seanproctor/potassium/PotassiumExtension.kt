@@ -9,7 +9,6 @@ import com.seanproctor.potassium.desktop.application.dsl.JvmApplication
 import com.seanproctor.potassium.desktop.application.dsl.NativeApplication
 import com.seanproctor.potassium.desktop.application.internal.JvmApplicationInternal
 import org.gradle.api.Action
-import org.gradle.api.Project
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.plugins.ExtensionAware
 import javax.inject.Inject
@@ -17,11 +16,8 @@ import javax.inject.Inject
 abstract class PotassiumExtension
     @Inject
     constructor(
-        project: Project,
         private val objectFactory: ObjectFactory,
     ) : ExtensionAware {
-        val dependencies = PotassiumPlugin.Dependencies(project)
-
         internal var isJvmApplicationInitialized = false
             private set
         val application: JvmApplication by lazy {

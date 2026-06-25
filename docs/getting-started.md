@@ -87,7 +87,8 @@ Or pass it via the command line:
 | Task | Description |
 |------|-------------|
 | `packageDistributionForCurrentOS` | Build all configured formats for the current OS |
-| `package<Format>` | Build a specific format (e.g., `packageDmg`, `packageNsis`, `packageDeb`) |
+| `package<OS>` | Build all the current OS's non-store formats in one invocation (`packageMacOS` / `packageWindows` / `packageLinux`) |
+| `packagePkg` / `packageAppX` / `packageFlatpak` | Build a store format (each built separately) |
 | `packageReleaseDistributionForCurrentOS` | Same as above with ProGuard release build |
 | `createDistributable` | Create the application image without an installer |
 | `createReleaseDistributable` | Same with ProGuard |
@@ -102,16 +103,16 @@ Or pass it via the command line:
 ### Running a Specific Task
 
 ```bash
-# Build a DMG on macOS
-./gradlew packageDmg
+# Build all configured macOS formats (e.g. DMG + ZIP) in one invocation
+./gradlew packageMacOS
 
-# Build NSIS installer on Windows
-./gradlew packageNsis
+# Build all configured Windows formats (e.g. NSIS + MSI) in one invocation
+./gradlew packageWindows
 
-# Build DEB package on Linux
-./gradlew packageDeb
+# Build all configured Linux formats (e.g. DEB + RPM + AppImage) in one invocation
+./gradlew packageLinux
 
-# Build all formats for current OS
+# Build all formats for current OS (incl. store formats)
 ./gradlew packageDistributionForCurrentOS
 
 # Release build (with ProGuard)

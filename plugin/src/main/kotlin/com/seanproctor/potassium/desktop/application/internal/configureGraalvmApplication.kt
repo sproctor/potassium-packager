@@ -96,7 +96,6 @@ internal fun JvmApplicationContext.configureGraalvmApplication() {
                         app.jvmArgs.filter { arg ->
                             // Exclude jpackage-specific artificial args
                             !arg.startsWith("-splash:\$APPDIR/") &&
-                                !arg.startsWith("-D$APP_EXECUTABLE_TYPE=") &&
                                 !arg.startsWith("-D$APP_RESOURCES_DIR=")
                         },
                     )
@@ -1463,91 +1462,92 @@ private fun JvmApplicationContext.configureGraalvmElectronBuilderPackaging(
     unpackDefaultResources: TaskProvider<AbstractUnpackDefaultApplicationResourcesTask>,
     imageName: org.gradle.api.provider.Provider<String>,
 ) {
+    // All of the current OS's (non-store) formats are built in ONE electron-builder invocation.
     val ebFormats =
         app.nativeDistributions.targetFormats
             .filter { it.backend == PackagingBackend.ELECTRON_BUILDER && !it.isStoreFormat }
+            .filter { it.isCompatibleWithCurrentOS }
+    if (ebFormats.isEmpty()) return
 
-    for (targetFormat in ebFormats) {
-        val packageFormat =
-            tasks.register<AbstractElectronBuilderPackageTask>(
-                taskNameAction = "packageGraalvm",
-                taskNameObject = targetFormat.name,
-                args = listOf(targetFormat),
-            ) {
-                enabled = targetFormat.isCompatibleWithCurrentOS
-                dependsOn(packageGraalvmNative, unpackDefaultResources)
+    val packageTask =
+        tasks.register<AbstractElectronBuilderPackageTask>(
+            taskNameAction = "packageGraalvm",
+            taskNameObject = currentOS.name,
+            args = listOf(ebFormats),
+        ) {
+            dependsOn(packageGraalvmNative, unpackDefaultResources)
 
-                // The app image root is the output directory from the native packaging step
-                appImageRoot.set(
-                    appTmpDir.map { it.dir("graalvm/output") },
-                )
+            // The app image root is the output directory from the native packaging step
+            appImageRoot.set(
+                appTmpDir.map { it.dir("graalvm/output") },
+            )
 
-                destinationDir.set(
-                    app.nativeDistributions.outputBaseDir.map {
-                        it.dir("$appDirName/graalvm-${targetFormat.outputDirName}")
-                    },
-                )
+            destinationDir.set(
+                app.nativeDistributions.outputBaseDir.map {
+                    it.dir("$appDirName/graalvm-${currentOS.name.lowercase(java.util.Locale.ROOT)}")
+                },
+            )
 
-                packageName.set(packageNameProvider)
-                packageVersion.set(packageVersionFor(targetFormat))
+            packageName.set(packageNameProvider)
+            packageVersion.set(packageVersionFor(ebFormats.first()))
 
-                // Only wire platform-specific icons/entitlements for the current OS
-                // to avoid validation errors from missing cross-platform files.
-                when (currentOS) {
-                    OS.Linux -> {
-                        linuxIconFile.set(
-                            app.nativeDistributions.linux.iconFile
-                                .orElse(unpackDefaultResources.flatMap { it.resources.linuxIcon }),
-                        )
-                        val startupWMClass =
-                            app.nativeDistributions.linux.startupWMClass
-                                ?.takeIf { it.isNotBlank() }
-                                ?: app.mainClass?.replace('.', '-')
-                        if (startupWMClass != null) {
-                            this.startupWMClass.set(startupWMClass)
-                        }
-                    }
-                    OS.Windows -> {
-                        windowsIconFile.set(
-                            app.nativeDistributions.windows.iconFile
-                                .orElse(unpackDefaultResources.flatMap { it.resources.windowsIcon }),
-                        )
-                    }
-                    OS.MacOS -> {
-                        val mac = app.nativeDistributions.macOS
-                        nonValidatedMacSigningSettings = mac.signing
-                        nonValidatedMacBundleID.set(mac.bundleID)
-                        // PKG is always treated as App Store — ignore the deprecated user setting.
-                        macAppStore.set(targetFormat.isStoreFormat)
-                        macEntitlementsFile.set(
-                            mac.entitlementsFile.orElse(
-                                unpackDefaultResources.flatMap { it.resources.defaultEntitlements },
-                            ),
-                        )
-                        macRuntimeEntitlementsFile.set(
-                            mac.runtimeEntitlementsFile.orElse(
-                                unpackDefaultResources.flatMap { it.resources.defaultEntitlements },
-                            ),
-                        )
+            // Only wire platform-specific icons/entitlements for the current OS
+            // to avoid validation errors from missing cross-platform files.
+            when (currentOS) {
+                OS.Linux -> {
+                    linuxIconFile.set(
+                        app.nativeDistributions.linux.iconFile
+                            .orElse(unpackDefaultResources.flatMap { it.resources.linuxIcon }),
+                    )
+                    val startupWMClass =
+                        app.nativeDistributions.linux.startupWMClass
+                            ?.takeIf { it.isNotBlank() }
+                            ?: app.mainClass?.replace('.', '-')
+                    if (startupWMClass != null) {
+                        this.startupWMClass.set(startupWMClass)
                     }
                 }
-
-                executableName.set(imageName)
-                customNodePath.set(PotassiumProperties.electronBuilderNodePath(project.providers))
-                publishMode.set(PotassiumProperties.electronBuilderPublishMode(project.providers))
-                distributions = app.nativeDistributions
+                OS.Windows -> {
+                    windowsIconFile.set(
+                        app.nativeDistributions.windows.iconFile
+                            .orElse(unpackDefaultResources.flatMap { it.resources.windowsIcon }),
+                    )
+                }
+                OS.MacOS -> {
+                    val mac = app.nativeDistributions.macOS
+                    nonValidatedMacSigningSettings = mac.signing
+                    nonValidatedMacBundleID.set(mac.bundleID)
+                    // These are all non-store formats, so App Store mode is never enabled here.
+                    macAppStore.set(ebFormats.any { it.isStoreFormat })
+                    macEntitlementsFile.set(
+                        mac.entitlementsFile.orElse(
+                            unpackDefaultResources.flatMap { it.resources.defaultEntitlements },
+                        ),
+                    )
+                    macRuntimeEntitlementsFile.set(
+                        mac.runtimeEntitlementsFile.orElse(
+                            unpackDefaultResources.flatMap { it.resources.defaultEntitlements },
+                        ),
+                    )
+                }
             }
 
-        if (targetFormat.isCompatibleWith(OS.MacOS)) {
-            tasks.register<AbstractNotarizationTask>(
-                taskNameAction = "notarizeGraalvm",
-                taskNameObject = targetFormat.name,
-                args = listOf(targetFormat),
-            ) {
-                dependsOn(packageFormat)
-                inputDir.set(packageFormat.flatMap { it.destinationDir })
-                configureCommonNotarizationSettings(this)
-            }
+            executableName.set(imageName)
+            customNodePath.set(PotassiumProperties.electronBuilderNodePath(project.providers))
+            publishMode.set(PotassiumProperties.electronBuilderPublishMode(project.providers))
+            distributions = app.nativeDistributions
+        }
+
+    // Notarization is per-artifact: one task per macOS format over the shared output directory.
+    for (targetFormat in ebFormats.filter { it.isCompatibleWith(OS.MacOS) }) {
+        tasks.register<AbstractNotarizationTask>(
+            taskNameAction = "notarizeGraalvm",
+            taskNameObject = targetFormat.name,
+            args = listOf(targetFormat),
+        ) {
+            dependsOn(packageTask)
+            inputDir.set(packageTask.flatMap { it.destinationDir })
+            configureCommonNotarizationSettings(this)
         }
     }
 }

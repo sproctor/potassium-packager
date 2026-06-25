@@ -24,7 +24,6 @@ import com.seanproctor.potassium.desktop.application.internal.files.isDylibPath
 import com.seanproctor.potassium.desktop.application.internal.MACOS_DMG_TITLE_BAR_HEIGHT
 import com.seanproctor.potassium.desktop.application.internal.padDmgBackgroundForTitleBar
 import com.seanproctor.potassium.desktop.application.internal.readImageDimensions
-import com.seanproctor.potassium.desktop.application.internal.updateExecutableTypeInAppImage
 import com.seanproctor.potassium.desktop.application.internal.validation.ValidatedMacOSSigningSettings
 import com.seanproctor.potassium.desktop.application.internal.validation.validate
 import com.seanproctor.potassium.desktop.tasks.AbstractPotassiumTask
@@ -76,17 +75,17 @@ import kotlin.io.path.isRegularFile
  *
  * Pipeline:
  *   1. Resolve the platform-specific app directory from the jpackage app-image output.
- *   2. Update the executable type in the app image's .cfg launcher file.
- *   3. Generate an electron-builder YAML configuration from the DSL settings.
- *   4. Invoke electron-builder via npx with `--prepackaged`.
- *   5. Output the final installer/package to [destinationDir].
+ *   2. Generate an electron-builder YAML configuration from the DSL settings.
+ *   3. Invoke electron-builder via npx with `--prepackaged`.
+ *   4. Output the final installer/package to [destinationDir].
  */
 @DisableCachingByDefault(because = "Depends on external electron-builder tool")
 @Suppress("LargeClass", "TooManyFunctions")
 abstract class AbstractElectronBuilderPackageTask
     @Inject
     constructor(
-        @get:Input val targetFormat: TargetFormat,
+        /** All formats built in this single electron-builder invocation (all of the current OS). */
+        @get:Input val targetFormats: List<TargetFormat>,
     ) : AbstractPotassiumTask() {
         companion object {
             private const val APPX_STORE_LOGO_SIZE = 50
@@ -213,13 +212,13 @@ abstract class AbstractElectronBuilderPackageTask
                 this.distributions
                     ?: throw GradleException("distributions must be set on AbstractElectronBuilderPackageTask")
 
-            if (!targetFormat.isCompatibleWithCurrentOS) {
+            val formats = resolveEffectiveFormats()
+            if (formats.isEmpty()) {
                 logger.lifecycle(
-                    "Skipping ${targetFormat.name} packaging: not compatible with current OS ($currentOS)",
+                    "Skipping electron-builder packaging: none of $targetFormats are buildable on $currentOS",
                 )
                 return
             }
-            if (shouldSkipForMissingTool()) return
 
             val originalAppDir = resolveAppImageDir()
             logger.info("Resolved app image directory: ${originalAppDir.absolutePath}")
@@ -227,21 +226,20 @@ abstract class AbstractElectronBuilderPackageTask
             val outputDir = destinationDir.ioFile.apply { mkdirs() }
 
             // Create a task-private copy of the app image so parallel tasks don't
-            // interfere when modifying .cfg files or signing the bundle.
+            // interfere when signing the bundle or when electron-builder writes into it.
             val workingAppDir = copyAppImage(originalAppDir, outputDir, logger)
 
             ensureResourcesDirForElectronBuilder(workingAppDir)
             ensureLinuxExecutableAlias(workingAppDir)
-            updateExecutableTypeInAppImage(workingAppDir, targetFormat, logger, packageVersion.orNull)
-            ensureMacAdHocSigning(workingAppDir, targetFormat)
+            ensureMacAdHocSigning(workingAppDir, formats)
 
             val npx = detectNpx()
             validateNodeVersion()
 
             val linuxIconOverride = prepareLinuxIconSet(outputDir)
             val windowsIconOverride = resolveWindowsIcon()
-            val linuxAfterInstallTemplate = prepareLinuxAfterInstallTemplate(outputDir)
-            if (targetFormat == TargetFormat.AppX) {
+            val linuxAfterInstallTemplate = prepareLinuxAfterInstallTemplate(formats, outputDir)
+            if (TargetFormat.AppX in formats) {
                 val hasExplicitWindowsIcon =
                     dist.windows.iconFile.orNull
                         ?.asFile != null
@@ -254,6 +252,7 @@ abstract class AbstractElectronBuilderPackageTask
             val configFile =
                 generateConfig(
                     distributions = dist,
+                    targetFormats = formats,
                     appDir = workingAppDir,
                     outputDir = outputDir,
                     linuxIconOverride = linuxIconOverride,
@@ -267,13 +266,13 @@ abstract class AbstractElectronBuilderPackageTask
             val toolManager = ElectronBuilderToolManager(execOperations, logger)
             val extraConfigArgs =
                 buildList {
-                    if (targetFormat == TargetFormat.Snap && dist.publish.github.enabled) {
+                    if (TargetFormat.Snap in formats && dist.publish.github.enabled) {
                         add("--config.snap.publish=github")
                     }
                 }
             val ebEnvironment =
                 resolveElectronBuilderEnvironment(
-                    targetFormat = targetFormat,
+                    targetFormats = formats,
                     currentOs = currentOS,
                     currentArchitecture = currentArch,
                     logger = logger,
@@ -283,7 +282,7 @@ abstract class AbstractElectronBuilderPackageTask
                     configFile = configFile,
                     prepackagedDir = workingAppDir,
                     outputDir = outputDir,
-                    targets = buildElectronBuilderTargets(),
+                    targets = buildElectronBuilderTargets(formats),
                     extraConfigArgs = extraConfigArgs,
                     npx = npx,
                     environment = ebEnvironment,
@@ -291,7 +290,7 @@ abstract class AbstractElectronBuilderPackageTask
                 ),
             )
 
-            if (targetFormat == TargetFormat.Pkg) {
+            if (TargetFormat.Pkg in formats) {
                 signPkgInstaller(outputDir)
             }
 
@@ -299,13 +298,35 @@ abstract class AbstractElectronBuilderPackageTask
             cleanupBuildTemporaries(outputDir)
             configFile.delete()
             exportPackagingMetadata(outputDir, dist)
-            generateUpdateYmlIfNeeded(outputDir, dist)
-            logger.lifecycle("potassium builder package written to ${outputDir.canonicalPath}")
+            generateUpdateYmlIfNeeded(outputDir, dist, formats)
+            logger.lifecycle(
+                "potassium builder packages [${formats.joinToString { it.name }}] " +
+                    "written to ${outputDir.canonicalPath}",
+            )
         }
+
+        /**
+         * Filters the requested formats down to those actually buildable on this machine:
+         * compatible with the current OS, and (for Snap/Flatpak on Linux) whose external tool is
+         * available. Formats that are dropped are logged. The remaining set is built in one
+         * electron-builder invocation.
+         */
+        private fun resolveEffectiveFormats(): List<TargetFormat> =
+            targetFormats.filter { format ->
+                when {
+                    !format.isCompatibleWithCurrentOS -> {
+                        logger.info("Skipping ${format.name}: not compatible with current OS ($currentOS)")
+                        false
+                    }
+                    !isToolAvailableFor(format) -> false
+                    else -> true
+                }
+            }
 
         private fun generateUpdateYmlIfNeeded(
             outputDir: File,
             dist: JvmApplicationDistributions,
+            targetFormats: List<TargetFormat>,
         ) {
             // electron-builder natively writes the per-channel manifest for AppImage/NSIS/DMG/DEB/RPM,
             // but only while its own auto-update publishing is enabled. For S3 we force
@@ -315,8 +336,8 @@ abstract class AbstractElectronBuilderPackageTask
             // must generate the manifest for every auto-updatable format, not just MSI/Portable; the
             // generator is a no-op when a manifest already exists, so this is safe either way.
             val shouldGenerate =
-                targetFormat.needsPluginUpdateYml ||
-                    (targetFormat.producesUpdateManifest && dist.publish.s3.enabled)
+                targetFormats.any { it.needsPluginUpdateYml } ||
+                    (dist.publish.s3.enabled && targetFormats.any { it.producesUpdateManifest })
             if (!shouldGenerate) return
             // Auto-update manifests are keyed to the app's release version — the full
             // SemVer including any -beta.N — which is what the running app reports
@@ -329,7 +350,10 @@ abstract class AbstractElectronBuilderPackageTask
             // distribution-level version is set.
             val manifestVersion = dist.packageVersion ?: packageVersion.orNull ?: "0.0.0"
             val channel = resolveUpdateChannel(dist, manifestVersion)
-            val ymlFilename = targetFormat.updateYmlFilename(channel)
+            // The manifest name is keyed on the OS only, so every format in this batch shares it;
+            // generateIfMissing scans the whole output dir and lists every artifact, producing one
+            // multi-artifact manifest for the platform.
+            val ymlFilename = targetFormats.first().updateYmlFilename(channel)
             UpdateYmlGenerator.generateIfMissing(outputDir, ymlFilename, manifestVersion, logger)
         }
 
@@ -390,6 +414,7 @@ abstract class AbstractElectronBuilderPackageTask
 
         private fun generateConfig(
             distributions: JvmApplicationDistributions,
+            targetFormats: List<TargetFormat>,
             appDir: File,
             outputDir: File,
             linuxIconOverride: File?,
@@ -399,7 +424,7 @@ abstract class AbstractElectronBuilderPackageTask
             val configGenerator = ElectronBuilderConfigGenerator()
             val resolvedArch = Arch.entries.first { it.id == targetArch.get() }
 
-            val (dmgBackgroundOverride, dmgWindowOverride) = if (targetFormat == TargetFormat.Dmg) {
+            val (dmgBackgroundOverride, dmgWindowOverride) = if (TargetFormat.Dmg in targetFormats) {
                 val bgFile = distributions.macOS.dmg.background.orNull?.asFile
                 if (bgFile != null) {
                     val processedBg = padDmgBackgroundForTitleBar(bgFile, outputDir.resolve("dmg-assets"), logger)
@@ -414,7 +439,7 @@ abstract class AbstractElectronBuilderPackageTask
                 null to null
             }
 
-            if (targetFormat == TargetFormat.AppImage && distributions.compressionLevel == CompressionLevel.Maximum) {
+            if (TargetFormat.AppImage in targetFormats && distributions.compressionLevel == CompressionLevel.Maximum) {
                 logger.warn(
                     "AppImage with 'maximum' compression can cause extremely slow startup times (60s+) " +
                         "due to squashfs/FUSE decompression overhead. Consider 'normal' or 'store' instead. " +
@@ -425,7 +450,7 @@ abstract class AbstractElectronBuilderPackageTask
             val configContent =
                 configGenerator.generateConfig(
                     distributions = distributions,
-                    targetFormat = targetFormat,
+                    targetFormats = targetFormats,
                     appImageDir = appDir,
                     targetArch = resolvedArch,
                     startupWMClass = startupWMClass.orNull,
@@ -586,16 +611,15 @@ abstract class AbstractElectronBuilderPackageTask
 
         private fun ensureMacAdHocSigning(
             appDir: File,
-            targetFormat: TargetFormat,
+            targetFormats: List<TargetFormat>,
         ) {
             if (currentOS != OS.MacOS) return
             if (!appDir.isDirectory) return
 
-            // For PKG (App Store), re-sign the .app with proper entitlements after .cfg modification.
-            // The jpackage task signed the app, but updateExecutableTypeInAppImage() modified .cfg
-            // files which invalidated the code signature. We must re-sign before electron-builder
-            // packages it into the PKG.
-            if (targetFormat == TargetFormat.Pkg) {
+            // For PKG (App Store), re-sign the .app with proper App Store entitlements before
+            // electron-builder packages it into the PKG. PKG is a store format built in its own
+            // (sandboxed) task, so it is never batched with DMG/ZIP.
+            if (TargetFormat.Pkg in targetFormats) {
                 resignAppForPkg(appDir)
                 return
             }
@@ -605,7 +629,7 @@ abstract class AbstractElectronBuilderPackageTask
             // formats would ship with an ad-hoc signature that Apple rejects.
             val signer = macSigner
             if (signer != null && signer.settings != null) {
-                resignApp(appDir, "${targetFormat.name} format")
+                resignApp(appDir, "${targetFormats.joinToString { it.name }} format(s)")
                 return
             }
 
@@ -629,10 +653,10 @@ abstract class AbstractElectronBuilderPackageTask
         }
 
         /**
-         * Re-signs the .app bundle with the configured [macSigner], preserving Developer ID,
-         * secure timestamp, and hardened runtime. This is needed because
-         * [updateExecutableTypeInAppImage] modifies .cfg files which invalidates the
-         * code signature applied earlier by jpackage.
+         * Re-signs the .app bundle with the configured [macSigner], applying Developer ID,
+         * secure timestamp, hardened runtime, and the correct entitlements before
+         * electron-builder packages it. jpackage's earlier signature does not carry the
+         * notarization-ready settings, so a re-sign is required for DMG/ZIP/PKG outputs.
          *
          * Mirrors the signing flow in [AbstractJPackageTask.modifyRuntimeOnMacOsIfNeeded]:
          * sign individual binaries inside-out, then seal each container directory.
@@ -933,22 +957,24 @@ abstract class AbstractElectronBuilderPackageTask
             return ImageIO.read(file)
         }
 
-        private fun shouldSkipForMissingTool(): Boolean {
-            if (currentOS != OS.Linux) return false
+        private fun isToolAvailableFor(targetFormat: TargetFormat): Boolean {
+            if (currentOS != OS.Linux) return true
 
             return when (targetFormat) {
                 TargetFormat.Snap -> {
-                    if (!isCommandAvailable("snapcraft")) {
-                        logger.lifecycle("Skipping Snap packaging: 'snapcraft' is not available on this runner.")
-                        true
-                    } else if (currentArch == Arch.Arm64) {
-                        logger.lifecycle(
-                            "Skipping Snap packaging on arm64: electron-builder uses " +
-                                "build-snaps (gnome-3-28-1804) unavailable for arm64.",
-                        )
-                        true
-                    } else {
-                        false
+                    when {
+                        !isCommandAvailable("snapcraft") -> {
+                            logger.lifecycle("Skipping Snap packaging: 'snapcraft' is not available on this runner.")
+                            false
+                        }
+                        currentArch == Arch.Arm64 -> {
+                            logger.lifecycle(
+                                "Skipping Snap packaging on arm64: electron-builder uses " +
+                                    "build-snaps (gnome-3-28-1804) unavailable for arm64.",
+                            )
+                            false
+                        }
+                        else -> true
                     }
                 }
                 TargetFormat.Flatpak -> {
@@ -957,12 +983,12 @@ abstract class AbstractElectronBuilderPackageTask
                             "Skipping Flatpak packaging: 'flatpak' is not available on this runner. " +
                                 "Install it with: sudo apt-get install -y flatpak flatpak-builder",
                         )
-                        true
-                    } else {
                         false
+                    } else {
+                        true
                     }
                 }
-                else -> false
+                else -> true
             }
         }
 
@@ -984,9 +1010,12 @@ abstract class AbstractElectronBuilderPackageTask
             }
         }
 
-        private fun prepareLinuxAfterInstallTemplate(outputDir: File): File? {
+        private fun prepareLinuxAfterInstallTemplate(
+            targetFormats: List<TargetFormat>,
+            outputDir: File,
+        ): File? {
             if (currentOS != OS.Linux) return null
-            if (targetFormat != TargetFormat.Deb && targetFormat != TargetFormat.Rpm) return null
+            if (TargetFormat.Deb !in targetFormats && TargetFormat.Rpm !in targetFormats) return null
 
             val templateFile = outputDir.resolve("after-install-potassium.tpl")
             val script =
@@ -1278,15 +1307,17 @@ abstract class AbstractElectronBuilderPackageTask
          * electron-builder uses platform flags: `--linux`, `--win`, `--mac`
          * followed by the target type (e.g., `deb`, `nsis`, `dmg`).
          */
-        private fun buildElectronBuilderTargets(): List<String> {
+        private fun buildElectronBuilderTargets(targetFormats: List<TargetFormat>): List<String> {
             val platformFlag =
                 when (currentOS) {
                     OS.Linux -> "--linux"
                     OS.Windows -> "--win"
                     OS.MacOS -> "--mac"
                 }
-
-            return listOf(platformFlag, targetFormat.electronBuilderTarget)
+            // One platform flag followed by every target so electron-builder builds them all in a
+            // single invocation, e.g. `--linux deb rpm appimage`.
+            val targets = targetFormats.map { it.electronBuilderTarget }.distinct()
+            return listOf(platformFlag) + targets
         }
     }
 
@@ -1382,7 +1413,7 @@ private fun isolatedCacheEnv(outputDir: File): Map<String, String> {
 }
 
 private fun resolveElectronBuilderEnvironment(
-    targetFormat: TargetFormat,
+    targetFormats: List<TargetFormat>,
     currentOs: OS,
     currentArchitecture: Arch,
     logger: Logger,
@@ -1415,7 +1446,7 @@ private fun resolveElectronBuilderEnvironment(
     }
 
     // Linux Snap: use destructive mode so snapcraft doesn't require LXD/multipass
-    if (currentOs == OS.Linux && targetFormat == TargetFormat.Snap) {
+    if (currentOs == OS.Linux && TargetFormat.Snap in targetFormats) {
         env["SNAPCRAFT_BUILD_ENVIRONMENT"] = "host"
     }
 

@@ -75,7 +75,7 @@ patchCaCertificates     ←  copies runtime, runs keytool for each cert
 createDistributable
 createSandboxedDistributable
        ↓
-packageDmg / packageDeb / packageNsis / …
+packageMacOS / packageLinux / packageWindows  (or packageDistributionForCurrentOS)
 ```
 
 ## Notes

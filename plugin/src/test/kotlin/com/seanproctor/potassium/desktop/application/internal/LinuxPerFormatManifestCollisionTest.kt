@@ -7,20 +7,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Regression test for the Linux per-format auto-update manifest collision.
+ * Pins the union-manifest contract of [UpdateYmlMerger].
  *
- * Potassium packages each [TargetFormat] with its own electron-builder invocation, and for Linux each
- * run writes + publishes a single-artifact `<channel>-linux.yml`. Because
- * [TargetFormat.updateYmlFilename] keys the manifest name only off the OS (`-linux`) and not the
- * format, the Deb run and the AppImage run target the **same** key. Publishing each per-format
- * manifest independently makes the last writer (the Deb run sorts after the AppImage run) clobber
- * the other — leaving `<channel>-linux.yml` with only the `.deb`, so an AppImage client hits
- * `NoMatchingFileException`.
- *
- * The fix ([UpdateYmlMerger]) merges the per-format manifests into one union manifest before that
- * key is written, so every Linux format survives. This test pins that contract: the published
- * manifest must list both the deb and the AppImage. (Before the fix, the publish step overwrote
- * rather than merged, and this assertion failed.)
+ * A single `<channel>-linux.yml` (keyed by OS, see [TargetFormat.updateYmlFilename]) must list
+ * **every** Linux artifact so each format's client finds its file. Potassium now builds all of a
+ * platform's formats in one electron-builder invocation that emits a single multi-artifact manifest,
+ * but the merger remains the safety net that combines any separately-written single-artifact
+ * manifests (e.g. multiple architectures) into that one union — guaranteeing, for example, that the
+ * AppImage entry is never clobbered by the deb. This test pins that the merged manifest lists both.
  */
 class LinuxPerFormatManifestCollisionTest {
     private val appImageFileName = "Example-1.2.3.AppImage"

@@ -146,6 +146,7 @@ potassium.application {
 |---------|-------------------|---------------------------------------------------------------------------------------------------------------------------------------|
 | DSL entry point | `compose.desktop.application` | `potassium.application`                                                                                                                 |
 | DSL imports | `org.jetbrains.compose.desktop.application.dsl.*` | `com.seanproctor.potassium.desktop.application.dsl.*`                                                                            |
+| Compose dependencies | `compose.desktop.currentOs`, `compose("…")` | Unchanged — keep using the official `org.jetbrains.compose` DSL. Potassium no longer re-exposes a `potassium.*` Compose-dependency accessor.                                          |
 | Target formats | DMG, PKG, MSI, EXE, DEB, RPM | + NSIS, AppX, Portable, AppImage, Snap, Flatpak, archives                                                                             |
 | Native lib cleanup | Manual | `cleanupNativeLibs = true`                                                                                                            |
 | AOT cache | Not available | `enableAotCache = true`                                                                                                               |
@@ -190,7 +191,7 @@ Everything from the official plugin works unchanged:
 - `nativeDistributions` block (metadata, icons, resources)
 - `buildTypes` / ProGuard configuration
 - `modules()` / `includeAllModules`
-- All existing Gradle tasks (`run`, `packageDmg`, `packageDeb`, etc.)
+- The standard Gradle tasks (`run`, `packageDistributionForCurrentOS`, the per-platform `packageMacOS` / `packageWindows` / `packageLinux`, etc.)
 - `compose.desktop.currentOs` dependency
 - Source set configuration
 - [Compose Hot Reload](https://kotlinlang.org/docs/multiplatform/compose-hot-reload.html) — works as usual since Potassium extends the Compose plugin. Note: `hotRun` reads `mainClass` from `compose.desktop.application`, so set it there too or pass `-PmainClass=...` (see [Step 3](#step-3-use-the-potassium-dsl))

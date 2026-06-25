@@ -388,37 +388,45 @@ private fun JvmApplicationContext.configurePackagingTasks(commonTasks: CommonJvm
 
     val nonStoreNotarizeTasks = mutableListOf<TaskProvider<AbstractNotarizationTask>>()
 
-    val nonStorePackageFormats =
-        nonStoreFormats.map { targetFormat ->
-            val packageFormat =
+    // All of the current OS's non-store formats are built in ONE electron-builder invocation
+    // (e.g. packageLinux builds deb + rpm + appimage together).
+    val currentOsNonStoreFormats = nonStoreFormats.filter { it.isCompatibleWithCurrentOS }
+    val nonStorePackageTask: TaskProvider<AbstractElectronBuilderPackageTask>? =
+        if (currentOsNonStoreFormats.isNotEmpty()) {
+            val packageTask =
                 tasks.register<AbstractElectronBuilderPackageTask>(
                     taskNameAction = "package",
-                    taskNameObject = targetFormat.name,
-                    args = listOf(targetFormat),
+                    taskNameObject = currentOS.name,
+                    args = listOf(currentOsNonStoreFormats),
                 ) {
                     configureElectronBuilderPackageTask(
                         this,
+                        outputDirName = currentOS.name.lowercase(java.util.Locale.ROOT),
                         createDistributable = createDistributable,
                         unpackDefaultResources = commonTasks.unpackDefaultResources,
                     )
                     generateAotCache?.let { dependsOn(it) }
                 }
 
-            if (targetFormat.isCompatibleWith(OS.MacOS)) {
+            // Notarization is per-artifact, so register one notarize task per macOS format, all
+            // pointing at the single package task's shared output directory.
+            for (targetFormat in currentOsNonStoreFormats.filter { it.isCompatibleWith(OS.MacOS) }) {
                 val notarizeTask =
                     tasks.register<AbstractNotarizationTask>(
                         taskNameAction = "notarize",
                         taskNameObject = targetFormat.name,
                         args = listOf(targetFormat),
                     ) {
-                        dependsOn(packageFormat)
-                        inputDir.set(packageFormat.flatMap { it.destinationDir })
+                        dependsOn(packageTask)
+                        inputDir.set(packageTask.flatMap { it.destinationDir })
                         configureCommonNotarizationSettings(this)
                     }
                 nonStoreNotarizeTasks.add(notarizeTask)
             }
 
-            packageFormat
+            packageTask
+        } else {
+            null
         }
 
     // === Sandboxed pipeline (store formats: PKG, AppX, Flatpak) ===
@@ -472,15 +480,18 @@ private fun JvmApplicationContext.configurePackagingTasks(commonTasks: CommonJvm
                     null
                 }
 
+            // Store formats (PKG/AppX/Flatpak) need their own sandboxed app and signing, so they
+            // can't share the batched non-store invocation — they stay one task per format.
             storeFormats.map { targetFormat ->
                 val packageFormat =
                     tasks.register<AbstractElectronBuilderPackageTask>(
                         taskNameAction = "package",
                         taskNameObject = targetFormat.name,
-                        args = listOf(targetFormat),
+                        args = listOf(listOf(targetFormat)),
                     ) {
                         configureElectronBuilderPackageTask(
                             this,
+                            outputDirName = targetFormat.outputDirName,
                             createDistributable = createSandboxedDistributable,
                             unpackDefaultResources = commonTasks.unpackDefaultResources,
                         )
@@ -507,15 +518,14 @@ private fun JvmApplicationContext.configurePackagingTasks(commonTasks: CommonJvm
             emptyList()
         }
 
-    val packageFormats = nonStorePackageFormats + storePackageFormats
+    val packageFormats = listOfNotNull(nonStorePackageTask) + storePackageFormats
     val allNotarizeTasks = nonStoreNotarizeTasks + storeNotarizeTasks
 
-    // When several formats of the current OS publish to S3, electron-builder would have each
-    // per-format run upload its own single-artifact `<channel><osSuffix>.yml` to the same key,
-    // clobbering the others. Suppress those uploads (publishAutoUpdate: false) and publish one
-    // merged manifest instead.
+    // The single per-platform non-store invocation writes one multi-artifact `<channel><osSuffix>.yml`.
+    // For S3 it is configured with `publishAutoUpdate: false`, so the plugin owns that key and uploads
+    // the manifest via this task.
     val mergeUpdateYml: TaskProvider<AbstractMergeUpdateYmlTask>? =
-        registerUpdateYmlMergeIfNeeded(nonStoreFormats, nonStorePackageFormats)
+        registerUpdateYmlMergeIfNeeded(currentOsNonStoreFormats, nonStorePackageTask)
 
     val notarizeForCurrentOS =
         if (allNotarizeTasks.isNotEmpty()) {
@@ -584,7 +594,7 @@ private fun JvmApplicationContext.configurePackagingTasks(commonTasks: CommonJvm
     if (currentOS == OS.Windows && hasStoreFormats) {
         val appxPackageTask =
             storePackageFormats.firstOrNull { task ->
-                task.map { it.targetFormat }.orNull == TargetFormat.AppX
+                task.map { TargetFormat.AppX in it.targetFormats }.orNull == true
             }
         if (appxPackageTask != null) {
             val appxSettings = app.nativeDistributions.windows.appx
@@ -641,23 +651,19 @@ private fun JvmApplicationContext.configurePackagingTasks(commonTasks: CommonJvm
  */
 private fun JvmApplicationContext.registerUpdateYmlMergeIfNeeded(
     nonStoreFormats: List<TargetFormat>,
-    nonStorePackageFormats: List<TaskProvider<AbstractElectronBuilderPackageTask>>,
+    nonStorePackageTask: TaskProvider<AbstractElectronBuilderPackageTask>?,
 ): TaskProvider<AbstractMergeUpdateYmlTask>? {
     val s3 = app.nativeDistributions.publish.s3
     if (!s3.enabled) return null
-
-    val updatableTasks =
-        nonStoreFormats.zip(nonStorePackageFormats)
-            .filter { (format, _) -> format.isCompatibleWithCurrentOS && format.producesUpdateManifest }
-            .map { (_, task) -> task }
-    if (updatableTasks.isEmpty()) return null
+    if (nonStorePackageTask == null) return null
+    if (nonStoreFormats.none { it.isCompatibleWithCurrentOS && it.producesUpdateManifest }) return null
 
     return tasks.register<AbstractMergeUpdateYmlTask>(
         taskNameAction = "merge",
         taskNameObject = "updateYml",
     ) {
-        dependsOn(updatableTasks)
-        perFormatOutputDirs.from(updatableTasks.map { provider -> provider.flatMap { it.destinationDir } })
+        dependsOn(nonStorePackageTask)
+        perFormatOutputDirs.from(nonStorePackageTask.flatMap { it.destinationDir })
         s3Enabled.set(true)
         // S3 settings are plain DSL `var`s; read them in this (deferred) configure block, where they
         // are final, and only set the optional properties when present.
@@ -820,9 +826,8 @@ private fun JvmApplicationContext.configurePackageTask(
     packageTask.sandboxingEnabled.set(sandboxed)
     packageTask.launcherJvmArgs.set(
         provider {
-            val executableTypeArg = "-D$APP_EXECUTABLE_TYPE=${packageTask.targetFormat.executableTypeValue}"
             val appIdArg = "-D$APP_ID=${resolvedAppIdProvider().get()}"
-            var args = defaultJvmArgs + executableTypeArg + appIdArg + app.jvmArgs
+            var args = defaultJvmArgs + appIdArg + app.jvmArgs
             val splash = app.nativeDistributions.splashImage
             if (splash != null) {
                 args = args + "-splash:\$APPDIR/resources/$splash"
@@ -839,16 +844,17 @@ private fun JvmApplicationContext.configurePackageTask(
 
 private fun JvmApplicationContext.configureElectronBuilderPackageTask(
     packageTask: AbstractElectronBuilderPackageTask,
+    outputDirName: String,
     createDistributable: TaskProvider<AbstractJPackageTask>,
     unpackDefaultResources: TaskProvider<AbstractUnpackDefaultApplicationResourcesTask>,
 ) {
-    packageTask.enabled = packageTask.targetFormat.isCompatibleWithCurrentOS
+    packageTask.enabled = packageTask.targetFormats.any { it.isCompatibleWithCurrentOS }
     packageTask.dependsOn(createDistributable)
     packageTask.appImageRoot.set(createDistributable.flatMap { it.destinationDir })
 
     packageTask.destinationDir.set(
         app.nativeDistributions.outputBaseDir.map {
-            it.dir("$appDirName/${packageTask.targetFormat.outputDirName}")
+            it.dir("$appDirName/$outputDirName")
         },
     )
 
@@ -869,7 +875,9 @@ private fun JvmApplicationContext.configureElectronBuilderPackageTask(
             )
         },
     )
-    packageTask.packageVersion.set(packageVersionFor(packageTask.targetFormat))
+    // One invocation builds all of the platform's formats, so a single version applies. Format-
+    // specific version overrides (e.g. windows.msiPackageVersion) cannot be honored when batched.
+    packageTask.packageVersion.set(packageVersionFor(packageTask.targetFormats.first()))
     packageTask.linuxIconFile.set(
         app.nativeDistributions.linux.iconFile
             .orElse(unpackDefaultResources.get { linuxIcon }),
@@ -899,8 +907,8 @@ private fun JvmApplicationContext.configureElectronBuilderPackageTask(
         packageTask.nonValidatedMacSigningSettings = mac.signing
         packageTask.nonValidatedMacBundleID.set(mac.bundleID)
         // PKG is always treated as App Store — ignore the deprecated user setting for store formats.
-        packageTask.macAppStore.set(packageTask.targetFormat.isStoreFormat)
-        val sandboxed = packageTask.targetFormat.isStoreFormat
+        packageTask.macAppStore.set(packageTask.targetFormats.any { it.isStoreFormat })
+        val sandboxed = packageTask.targetFormats.any { it.isStoreFormat }
         val defaultAppEntitlements =
             if (sandboxed) {
                 unpackDefaultResources.get { defaultSandboxEntitlements }
@@ -1076,7 +1084,6 @@ private fun JvmApplicationContext.configureRunTask(
     exec.jvmArgs =
         arrayListOf<String>().apply {
             addAll(defaultJvmArgs)
-            add("-D$APP_EXECUTABLE_TYPE=$EXECUTABLE_TYPE_DEV")
             add("-D$APP_ID=${resolvedAppIdProvider().get()}")
 
             if (currentOS == OS.MacOS) {

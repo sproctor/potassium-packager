@@ -233,7 +233,6 @@ java {
 kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_11)
-        freeCompilerArgs.add("-opt-in=com.seanproctor.potassium.ExperimentalPotassiumLibrary")
     }
 }
 
