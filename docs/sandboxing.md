@@ -10,20 +10,13 @@ Potassium automatically manages a **store build pipeline** for store formats. Wh
 | AppX | Windows | [MSIX packaging](https://learn.microsoft.com/en-us/windows/msix/overview) (full trust — not sandboxed) |
 | Flatpak | Linux | [Flatpak sandbox](https://docs.flatpak.org/en/latest/sandbox-permissions.html) |
 
-The plugin determines which formats require sandboxing via `TargetFormat.isStoreFormat`:
+The plugin automatically classifies the store formats — `Pkg` (macOS), `AppX` (Windows), and `Flatpak` (Linux) — as requiring the sandboxed pipeline:
 
 ```kotlin
-targetFormats(
-    // Direct distribution — non-sandboxed pipeline
-    TargetFormat.Dmg,
-    TargetFormat.Nsis,
-    TargetFormat.Deb,
-
-    // Store distribution — sandboxed pipeline
-    TargetFormat.Pkg,
-    TargetFormat.AppX,
-    TargetFormat.Flatpak,
-)
+// Each platform mixes direct (non-sandboxed) and store (sandboxed) formats freely.
+macOS { targetFormats(MacOSTargetFormat.Dmg, MacOSTargetFormat.Pkg) }      // Pkg → sandboxed
+windows { targetFormats(WindowsTargetFormat.Nsis, WindowsTargetFormat.AppX) } // AppX → sandboxed
+linux { targetFormats(LinuxTargetFormat.Deb, LinuxTargetFormat.Flatpak) }   // Flatpak → sandboxed
 ```
 
 Both pipelines run in the same `./gradlew packageDistributionForCurrentOS` invocation. No extra configuration is needed.

@@ -42,14 +42,14 @@ plugins {
     id("com.seanproctor.potassium") version "1.15.11"
 }
 
-potassium.application {
+potassium {
     mainClass = "com.example.MainKt"
+    packageName = "MyApp"
+    packageVersion = "1.0.0"
 
-    nativeDistributions {
-        targetFormats(TargetFormat.Dmg, TargetFormat.Nsis, TargetFormat.Deb)
-        packageName = "MyApp"
-        packageVersion = "1.0.0"
-    }
+    macOS { targetFormats(MacOSTargetFormat.Dmg) }
+    windows { targetFormats(WindowsTargetFormat.Nsis) }
+    linux { targetFormats(LinuxTargetFormat.Deb) }
 }
 ```
 
@@ -59,13 +59,19 @@ potassium.application {
 ```
 
 > Kotlin DSL types live under `com.seanproctor.potassium.*` (for example
-> `import com.seanproctor.potassium.desktop.application.dsl.TargetFormat`).
+> `import com.seanproctor.potassium.dsl.MacOSTargetFormat`).
 
 ## Documentation
 
 Full documentation — configuration reference, per-platform targets, code signing, auto-update, GraalVM, and CI/CD — is in the [`docs/`](docs/) directory and published at the project site.
 
 A good starting point is [Getting Started](docs/getting-started.md), followed by [Configuration](docs/configuration.md) and [Migration from org.jetbrains.compose](docs/migration.md).
+
+## Sample
+
+[`sample/`](sample/) is a runnable Compose Multiplatform desktop app packaged by this plugin. It's a
+composite build that uses the plugin from source, so `cd sample && ./gradlew run` (or
+`packageDistributionForCurrentOS`) works against your local checkout. See [`sample/README.md`](sample/README.md).
 
 ## Coordinates
 

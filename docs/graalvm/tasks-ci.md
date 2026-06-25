@@ -12,9 +12,9 @@
 | `cleanupGraalvmMetadata` | Remove manual entries already covered by automatic metadata |
 | `packageGraalvmNative` | Compile and package the application as a native binary |
 | `runGraalvmNative` | Build and run the native image directly |
-| `packageGraalvmDeb` | Package the native image as a `.deb` installer (Linux) |
-| `packageGraalvmDmg` | Package the native image as a `.dmg` installer (macOS) |
-| `packageGraalvmNsis` | Package the native image as an NSIS `.exe` installer (Windows) |
+| `packageGraalvmLinux` | Package the native image as a `.deb` installer (Linux) |
+| `packageGraalvmMacOS` | Package the native image as a `.dmg` installer (macOS) |
+| `packageGraalvmWindows` | Package the native image as an NSIS `.exe` installer (Windows) |
 
 The tasks marked "runs automatically" are dependencies of `packageGraalvmNative` — you don't need to invoke them manually. They are listed here for reference and debugging.
 
@@ -26,11 +26,11 @@ The tasks marked "runs automatically" are dependencies of `packageGraalvmNative`
 ./gradlew runGraalvmNative
 
 # Build platform-specific installers (requires Node.js for electron-builder)
-./gradlew packageGraalvmDeb    # Linux
-./gradlew packageGraalvmDmg    # macOS
-./gradlew packageGraalvmNsis   # Windows
+./gradlew packageGraalvmLinux    # Linux
+./gradlew packageGraalvmMacOS    # macOS
+./gradlew packageGraalvmWindows   # Windows
 
-# NOTE: The `homepage` property is required in nativeDistributions for DEB packaging.
+# NOTE: The `homepage` property is required for DEB packaging.
 # electron-builder will fail without it. See Configuration > Package Metadata.
 
 # Optional: collect agent metadata as a final check
@@ -113,13 +113,13 @@ jobs:
         shell: bash
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
-            ./gradlew :myapp:packageGraalvmDeb \
+            ./gradlew :myapp:packageGraalvmLinux \
               -PnativeMarch=compatibility --no-daemon
           elif [ "$RUNNER_OS" = "macOS" ]; then
-            ./gradlew :myapp:packageGraalvmDmg \
+            ./gradlew :myapp:packageGraalvmMacOS \
               -PnativeMarch=compatibility --no-daemon
           elif [ "$RUNNER_OS" = "Windows" ]; then
-            ./gradlew :myapp:packageGraalvmNsis \
+            ./gradlew :myapp:packageGraalvmWindows \
               -PnativeMarch=compatibility --no-daemon
           fi
 

@@ -39,19 +39,19 @@ plugins {
 
 !!! note "Kotlin DSL imports"
     The Kotlin DSL types live under `com.seanproctor.potassium.*` (for example
-    `import com.seanproctor.potassium.desktop.application.dsl.TargetFormat`).
+    `import com.seanproctor.potassium.dsl.MacOSTargetFormat`).
 
 ## Minimal Configuration
 
 ```kotlin
-potassium.application {
+potassium {
     mainClass = "com.example.MainKt"
+    packageName = "MyApp"
+    packageVersion = "1.0.0"
 
-    nativeDistributions {
-        targetFormats(TargetFormat.Dmg, TargetFormat.Nsis, TargetFormat.Deb)
-        packageName = "MyApp"
-        packageVersion = "1.0.0"
-    }
+    macOS { targetFormats(MacOSTargetFormat.Dmg) }
+    windows { targetFormats(WindowsTargetFormat.Nsis) }
+    linux { targetFormats(LinuxTargetFormat.Deb) }
 }
 ```
 
@@ -68,7 +68,7 @@ potassium.application {
 
 Potassium is fully compatible with [Compose Hot Reload](https://kotlinlang.org/docs/multiplatform/compose-hot-reload.html). Since Potassium extends the Compose plugin (not replaces it), Hot Reload works out of the box.
 
-The `hotRun` task reads `mainClass` from the `compose.desktop.application` block. If you only set it in `potassium.application`, add a minimal Compose block:
+The `hotRun` task reads `mainClass` from the `compose.desktop.application` block. If you only set it in `potassium`, add a minimal Compose block:
 
 ```kotlin
 compose.desktop.application {
@@ -131,7 +131,7 @@ build/compose/binaries/main-release/<format>/   # Release builds
 Override with:
 
 ```kotlin
-nativeDistributions {
+potassium {
     outputBaseDir.set(project.layout.buildDirectory.dir("custom-output"))
 }
 ```
@@ -147,7 +147,7 @@ The plugin does not automatically detect required JDK modules. Use `suggestModul
 Then declare them in the DSL:
 
 ```kotlin
-nativeDistributions {
+potassium {
     modules("java.sql", "java.net.http", "jdk.accessibility")
 }
 ```
@@ -155,7 +155,7 @@ nativeDistributions {
 Or include everything (larger binary):
 
 ```kotlin
-nativeDistributions {
+potassium {
     includeAllModules = true
 }
 ```
@@ -165,7 +165,7 @@ nativeDistributions {
 Provide platform-specific icon files:
 
 ```kotlin
-nativeDistributions {
+potassium {
     macOS {
         iconFile.set(project.file("icons/app.icns"))
     }
@@ -189,7 +189,7 @@ nativeDistributions {
 Include extra files in the installation directory via `appResourcesRootDir`:
 
 ```kotlin
-nativeDistributions {
+potassium {
     appResourcesRootDir.set(project.layout.projectDirectory.dir("resources"))
 }
 ```

@@ -10,13 +10,15 @@ Potassium supports two macOS installer formats and universal (fat) binaries.
 | PKG | `.pkg` | Yes | Yes (App Sandbox) |
 
 ```kotlin
-targetFormats(TargetFormat.Dmg, TargetFormat.Pkg)
+macOS {
+    targetFormats(MacOSTargetFormat.Dmg, MacOSTargetFormat.Pkg)
+}
 ```
 
 ## General macOS Settings
 
 ```kotlin
-nativeDistributions {
+potassium {
     macOS {
         // Bundle identifier (reverse DNS notation)
         bundleID = "com.example.myapp"
@@ -175,11 +177,9 @@ The patching is controlled by the `macOsSdkVersion` DSL property (defaults to `"
 
 ```kotlin
 potassium {
-    nativeDistributions {
-        macOS {
-            macOsSdkVersion = "26.0"  // default — enables Liquid Glass
-            // macOsSdkVersion = null // disable SDK version patching
-        }
+    macOS {
+        macOsSdkVersion = "26.0"  // default — enables Liquid Glass
+        // macOsSdkVersion = null // disable SDK version patching
     }
 }
 ```

@@ -201,7 +201,7 @@
     <ID>TooManyFunctions:AbstractJPackageTask.kt$AbstractJPackageTask : AbstractJvmToolOperationTask</ID>
     <ID>TooManyFunctions:PotassiumProjectProperties.kt$PotassiumProperties</ID>
     <ID>TooManyFunctions:LinuxPackagePostProcessor.kt$LinuxPackagePostProcessor</ID>
-    <ID>TooManyFunctions:configureJvmApplication.kt$com.seanproctor.potassium.desktop.application.internal.configureJvmApplication.kt</ID>
+    <ID>TooManyFunctions:configureJvmApplication.kt$com.seanproctor.potassium.internal.configureJvmApplication.kt</ID>
     <ID>TooManyFunctions:fileUtils.kt$com.seanproctor.potassium.internal.utils.fileUtils.kt</ID>
     <ID>TopLevelPropertyNaming:CheckComposeCompilerPlugin.kt$internal const val minimalSupportedKgpVersion = "2.2.0"</ID>
     <ID>TopLevelPropertyNaming:CheckComposeCompilerPlugin.kt$internal const val minimalSupportedKgpVersionError = "e: Configuration problem: " + "Minimal supported Kotlin Gradle Plugin version is $minimalSupportedKgpVersion"</ID>
@@ -239,15 +239,15 @@
     <ID>WildcardImport:AbstractNativeMacApplicationPackageTask.kt$import com.seanproctor.potassium.internal.utils.*</ID>
     <ID>WildcardImport:AbstractNativeMacApplicationPackageTask.kt$import org.gradle.api.tasks.*</ID>
     <ID>WildcardImport:AbstractNotarizationTask.kt$import org.gradle.api.tasks.*</ID>
-    <ID>WildcardImport:AbstractProguardTask.kt$import com.seanproctor.potassium.desktop.application.internal.*</ID>
+    <ID>WildcardImport:AbstractProguardTask.kt$import com.seanproctor.potassium.internal.*</ID>
     <ID>WildcardImport:AbstractProguardTask.kt$import com.seanproctor.potassium.internal.utils.*</ID>
     <ID>WildcardImport:AbstractProguardTask.kt$import org.gradle.api.file.*</ID>
     <ID>WildcardImport:AbstractProguardTask.kt$import org.gradle.api.tasks.*</ID>
     <ID>WildcardImport:AbstractSuggestModulesTask.kt$import com.seanproctor.potassium.internal.utils.*</ID>
     <ID>WildcardImport:AbstractSuggestModulesTask.kt$import org.gradle.api.tasks.*</ID>
-    <ID>WildcardImport:InfoPlistBuilder.kt$import com.seanproctor.potassium.desktop.application.internal.InfoPlistBuilder.InfoPlistValue.*</ID>
+    <ID>WildcardImport:InfoPlistBuilder.kt$import com.seanproctor.potassium.internal.InfoPlistBuilder.InfoPlistValue.*</ID>
     <ID>WildcardImport:MacSigningHelper.kt$import java.nio.file.*</ID>
-    <ID>WildcardImport:configureJvmApplication.kt$import com.seanproctor.potassium.desktop.application.tasks.*</ID>
+    <ID>WildcardImport:configureJvmApplication.kt$import com.seanproctor.potassium.tasks.*</ID>
     <ID>WildcardImport:configureJvmApplication.kt$import com.seanproctor.potassium.internal.utils.*</ID>
     <ID>WildcardImport:fileUtils.kt$import java.io.*</ID>
   </CurrentIssues>

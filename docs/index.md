@@ -52,14 +52,14 @@ plugins {
     id("com.seanproctor.potassium") version "1.15.11"
 }
 
-potassium.application {
+potassium {
     mainClass = "com.example.MainKt"
+    packageName = "MyApp"
+    packageVersion = "1.0.0"
 
-    nativeDistributions {
-        targetFormats(TargetFormat.Dmg, TargetFormat.Nsis, TargetFormat.Deb)
-        packageName = "MyApp"
-        packageVersion = "1.0.0"
-    }
+    macOS { targetFormats(MacOSTargetFormat.Dmg) }
+    windows { targetFormats(WindowsTargetFormat.Nsis) }
+    linux { targetFormats(LinuxTargetFormat.Deb) }
 }
 ```
 
@@ -70,7 +70,7 @@ potassium.application {
 
 !!! note "Kotlin DSL imports"
     The Kotlin DSL types live under `com.seanproctor.potassium.*` (for example
-    `import com.seanproctor.potassium.desktop.application.dsl.TargetFormat`).
+    `import com.seanproctor.potassium.dsl.MacOSTargetFormat`).
 
 ## Coordinates
 

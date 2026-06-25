@@ -241,10 +241,8 @@ val releaseVersion = System.getenv("RELEASE_VERSION")
     ?.takeIf { it.isNotBlank() }
     ?: "1.0.0"
 
-potassium.application {
-    nativeDistributions {
-        packageVersion = releaseVersion
-    }
+potassium {
+    packageVersion = releaseVersion
 }
 ```
 
@@ -531,13 +529,13 @@ jobs:
         shell: bash
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
-            xvfb-run ./gradlew :myapp:packageGraalvmDeb \
+            xvfb-run ./gradlew :myapp:packageGraalvmLinux \
               -PnativeMarch=compatibility --no-daemon
           elif [ "$RUNNER_OS" = "macOS" ]; then
-            ./gradlew :myapp:packageGraalvmDmg \
+            ./gradlew :myapp:packageGraalvmMacOS \
               -PnativeMarch=compatibility --no-daemon
           elif [ "$RUNNER_OS" = "Windows" ]; then
-            ./gradlew :myapp:packageGraalvmNsis \
+            ./gradlew :myapp:packageGraalvmWindows \
               -PnativeMarch=compatibility --no-daemon
           fi
 
@@ -552,9 +550,9 @@ jobs:
 
 | Task | Format | Platform |
 |------|--------|----------|
-| `packageGraalvmDeb` | `.deb` | Linux |
-| `packageGraalvmDmg` | `.dmg` | macOS |
-| `packageGraalvmNsis` | `.exe` (NSIS installer) | Windows |
+| `packageGraalvmLinux` | `.deb` | Linux |
+| `packageGraalvmMacOS` | `.dmg` | macOS |
+| `packageGraalvmWindows` | `.exe` (NSIS installer) | Windows |
 | `packageGraalvmNative` | Raw binary + libraries | All (no installer) |
 
 These tasks first compile the native image via `packageGraalvmNative`, then package it using electron-builder into the target format. Node.js is required (`setup-node: 'true'`).

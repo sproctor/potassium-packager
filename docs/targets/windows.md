@@ -13,18 +13,20 @@ Potassium supports five Windows installer formats and a portable mode.
 | Portable | `.exe` | No | No |
 
 ```kotlin
-targetFormats(
-    TargetFormat.Nsis,
-    TargetFormat.Msi,
-    TargetFormat.AppX,
-    TargetFormat.Portable,
-)
+windows {
+    targetFormats(
+        WindowsTargetFormat.Nsis,
+        WindowsTargetFormat.Msi,
+        WindowsTargetFormat.AppX,
+        WindowsTargetFormat.Portable,
+    )
+}
 ```
 
 ## General Windows Settings
 
 ```kotlin
-nativeDistributions {
+potassium {
     windows {
         iconFile.set(project.file("icons/app.ico"))
 
@@ -234,7 +236,7 @@ windows {
 ## File Associations
 
 ```kotlin
-nativeDistributions {
+potassium {
     // Cross-platform file association
     fileAssociation(
         mimeType = "application/x-myapp",

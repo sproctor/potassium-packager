@@ -33,43 +33,45 @@ Replace the JetBrains Compose DSL imports with the Potassium equivalents:
 
 ```diff
 -import org.jetbrains.compose.desktop.application.dsl.TargetFormat
-+import com.seanproctor.potassium.desktop.application.dsl.TargetFormat
++import com.seanproctor.potassium.dsl.MacOSTargetFormat
++import com.seanproctor.potassium.dsl.WindowsTargetFormat
++import com.seanproctor.potassium.dsl.LinuxTargetFormat
 ```
 
-This applies to all DSL types used in your `build.gradle.kts` (e.g. `TargetFormat`, `CompressionLevel`, `SigningAlgorithm`, etc.).
+This applies to all DSL types used in your `build.gradle.kts` (e.g. `MacOSTargetFormat`, `CompressionLevel`, `SigningAlgorithm`, etc.). Potassium splits the single Compose `TargetFormat` into per-OS enums declared inside each platform block — see [Step 3](#step-3-use-the-potassium-dsl).
 
 ## Step 3: Use the Potassium DSL
 
-Replace the `compose.desktop.application` block with `potassium.application` for packaging and distribution:
+Replace the `compose.desktop.application` block with `potassium` for packaging and distribution:
 
 ```diff
 -compose.desktop.application {
-+potassium.application {
++potassium {
      mainClass = "com.example.MainKt"
+-    targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+     packageName = "MyApp"
+     packageVersion = "1.0.0"
 
-     nativeDistributions {
-         targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-         packageName = "MyApp"
-         packageVersion = "1.0.0"
+     macOS {
++        targetFormats(MacOSTargetFormat.Dmg)
+         bundleID = "com.example.myapp"
+         iconFile.set(project.file("icons/app.icns"))
+     }
 
-         macOS {
-             bundleID = "com.example.myapp"
-             iconFile.set(project.file("icons/app.icns"))
-         }
+     windows {
++        targetFormats(WindowsTargetFormat.Msi)
+         iconFile.set(project.file("icons/app.ico"))
+     }
 
-         windows {
-             iconFile.set(project.file("icons/app.ico"))
-         }
-
-         linux {
-             iconFile.set(project.file("icons/app.png"))
-         }
+     linux {
++        targetFormats(LinuxTargetFormat.Deb)
+         iconFile.set(project.file("icons/app.png"))
      }
  }
 ```
 
 !!! tip "Using Compose Hot Reload?"
-    Some Compose plugin tasks (like `hotRun`) read `mainClass` from the original `compose.desktop.application` block, not from `potassium.application`. If you use [Compose Hot Reload](https://kotlinlang.org/docs/multiplatform/compose-hot-reload.html), either keep a minimal Compose block alongside Potassium:
+    Some Compose plugin tasks (like `hotRun`) read `mainClass` from the original `compose.desktop.application` block, not from `potassium`. If you use [Compose Hot Reload](https://kotlinlang.org/docs/multiplatform/compose-hot-reload.html), either keep a minimal Compose block alongside Potassium:
 
     ```kotlin
     compose.desktop.application {
@@ -88,53 +90,53 @@ Replace the `compose.desktop.application` block with `potassium.application` for
 Enable the features you need. All are opt-in:
 
 ```kotlin
-potassium.application {
+potassium {
     mainClass = "com.example.MainKt"
+    packageName = "MyApp"
+    packageVersion = "1.0.0"
 
-    nativeDistributions {
-        targetFormats(TargetFormat.Dmg, TargetFormat.Nsis, TargetFormat.Deb)
-        packageName = "MyApp"
-        packageVersion = "1.0.0"
+    // --- New Potassium features ---
+    cleanupNativeLibs = true
+    enableAotCache = true
+    splashImage = "splash.png"
+    compressionLevel = CompressionLevel.Maximum
+    artifactName = "${name}-${version}-${os}-${arch}.${ext}"
 
-        // --- New Potassium features ---
-        cleanupNativeLibs = true
-        enableAotCache = true
-        splashImage = "splash.png"
-        compressionLevel = CompressionLevel.Maximum
-        artifactName = "${name}-${version}-${os}-${arch}.${ext}"
+    // Deep links
+    protocol("MyApp", "myapp")
 
-        // Deep links
-        protocol("MyApp", "myapp")
+    // File associations
+    fileAssociation(
+        mimeType = "application/x-myapp",
+        extension = "myapp",
+        description = "MyApp Document",
+    )
 
-        // File associations
-        fileAssociation(
-            mimeType = "application/x-myapp",
-            extension = "myapp",
-            description = "MyApp Document",
-        )
-
-        // New Linux targets
+    // Target formats — grouped per OS (with new Potassium targets)
+    macOS { targetFormats(MacOSTargetFormat.Dmg) }
+    windows { targetFormats(WindowsTargetFormat.Nsis) }
+    linux {
         targetFormats(
-            TargetFormat.Dmg, TargetFormat.Nsis, TargetFormat.Deb,
-            TargetFormat.AppImage, TargetFormat.Snap, TargetFormat.Flatpak, // NEW
+            LinuxTargetFormat.Deb,
+            LinuxTargetFormat.AppImage, LinuxTargetFormat.Snap, LinuxTargetFormat.Flatpak, // NEW
         )
+    }
 
-        // Publishing
-        publish {
-            github {
-                enabled = true
-                owner = "myorg"
-                repo = "myapp"
-            }
+    // Publishing
+    publish {
+        github {
+            enabled = true
+            owner = "myorg"
+            repo = "myapp"
         }
+    }
 
-        // NSIS customization
-        windows {
-            nsis {
-                oneClick = false
-                allowToChangeInstallationDirectory = true
-                createDesktopShortcut = true
-            }
+    // NSIS customization
+    windows {
+        nsis {
+            oneClick = false
+            allowToChangeInstallationDirectory = true
+            createDesktopShortcut = true
         }
     }
 }
@@ -144,8 +146,8 @@ potassium.application {
 
 | Feature | Before (compose) | After (potassium)                                                                                                                       |
 |---------|-------------------|---------------------------------------------------------------------------------------------------------------------------------------|
-| DSL entry point | `compose.desktop.application` | `potassium.application`                                                                                                                 |
-| DSL imports | `org.jetbrains.compose.desktop.application.dsl.*` | `com.seanproctor.potassium.desktop.application.dsl.*`                                                                            |
+| DSL entry point | `compose.desktop.application` | `potassium`                                                                                                                 |
+| DSL imports | `org.jetbrains.compose.desktop.application.dsl.*` | `com.seanproctor.potassium.dsl.*`                                                                            |
 | Compose dependencies | `compose.desktop.currentOs`, `compose("…")` | Unchanged — keep using the official `org.jetbrains.compose` DSL. Potassium no longer re-exposes a `potassium.*` Compose-dependency accessor.                                          |
 | Target formats | DMG, PKG, MSI, EXE, DEB, RPM | + NSIS, AppX, Portable, AppImage, Snap, Flatpak, archives                                                                             |
 | Native lib cleanup | Manual | `cleanupNativeLibs = true`                                                                                                            |
@@ -173,22 +175,22 @@ Unlike Compose Desktop (which uses jpackage), Potassium uses electron-builder fo
 Please specify project homepage, see https://electron.build/configuration
 ```
 
-Make sure to set it in your `nativeDistributions` block:
+Make sure to set it in your `potassium` block:
 
 ```kotlin
-nativeDistributions {
+potassium {
     homepage = "https://myapp.example.com"
 }
 ```
 
-This also applies to GraalVM native image packaging (`packageGraalvmDeb`).
+This also applies to GraalVM native image packaging (`packageGraalvmLinux`).
 
 ## What Stays the Same
 
 Everything from the official plugin works unchanged:
 
 - `mainClass`, `jvmArgs`
-- `nativeDistributions` block (metadata, icons, resources)
+- Package metadata, icons, resources (now set directly in the `potassium` block)
 - `buildTypes` / ProGuard configuration
 - `modules()` / `includeAllModules`
 - The standard Gradle tasks (`run`, `packageDistributionForCurrentOS`, the per-platform `packageMacOS` / `packageWindows` / `packageLinux`, etc.)

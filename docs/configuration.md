@@ -1,11 +1,11 @@
 # Configuration
 
-All Potassium configuration lives inside the `potassium.application { }` block in your `build.gradle.kts`.
+All Potassium configuration lives inside the `potassium { }` block in your `build.gradle.kts`.
 
 ## Overview
 
 ```kotlin
-potassium.application {
+potassium {
     mainClass = "com.example.MainKt"
     jvmArgs += listOf("-Xmx512m")
 
@@ -20,82 +20,81 @@ potassium.application {
         }
     }
 
-    nativeDistributions {
-        // Target formats
-        targetFormats(TargetFormat.Dmg, TargetFormat.Nsis, TargetFormat.Deb)
+    // Package metadata
+    appName = "My App"     // Display name (installer, .desktop, Start Menu)
+    packageName = "MyApp"  // Technical name (executable, package file)
+    packageVersion = "1.0.0"
+    description = "My awesome desktop app"
+    vendor = "My Company"
+    copyright = "Copyright 2025 My Company"
+    homepage = "https://myapp.example.com"
+    licenseFile.set(project.file("LICENSE"))
 
-        // Package metadata
-        appName = "My App"     // Display name (installer, .desktop, Start Menu)
-        packageName = "MyApp"  // Technical name (executable, package file)
-        packageVersion = "1.0.0"
-        description = "My awesome desktop app"
-        vendor = "My Company"
-        copyright = "Copyright 2025 My Company"
-        homepage = "https://myapp.example.com"
-        licenseFile.set(project.file("LICENSE"))
+    // JDK modules
+    modules("java.sql", "java.net.http")
 
-        // JDK modules
-        modules("java.sql", "java.net.http")
+    // Potassium features
+    cleanupNativeLibs = true
+    enableAotCache = true
+    splashImage = "splash.png"
+    compressionLevel = CompressionLevel.Maximum
+    artifactName = "${name}-${version}-${os}-${arch}.${ext}"
 
-        // Potassium features
-        cleanupNativeLibs = true
-        enableAotCache = true
-        splashImage = "splash.png"
-        compressionLevel = CompressionLevel.Maximum
-        artifactName = "${name}-${version}-${os}-${arch}.${ext}"
+    // Deep links & file associations
+    protocol("MyApp", "myapp")
+    fileAssociation(
+        mimeType = "application/x-myapp",
+        extension = "myapp",
+        description = "MyApp Document",
+    )
 
-        // Deep links & file associations
-        protocol("MyApp", "myapp")
-        fileAssociation(
-            mimeType = "application/x-myapp",
-            extension = "myapp",
-            description = "MyApp Document",
-        )
+    // Publishing
+    publish { /* ... */ }
 
-        // Publishing
-        publish { /* ... */ }
-
-        // Platform-specific
-        macOS { /* ... */ }
-        windows { /* ... */ }
-        linux { /* ... */ }
-    }
+    // Platform-specific — target formats are grouped per OS here
+    macOS { targetFormats(MacOSTargetFormat.Dmg) /* ... */ }
+    windows { targetFormats(WindowsTargetFormat.Nsis) /* ... */ }
+    linux { targetFormats(LinuxTargetFormat.Deb) /* ... */ }
 }
 ```
 
 ## Target Formats
 
-All of the current OS's non-store formats are built in a **single** electron-builder invocation by
-one per-platform task: `packageMacOS`, `packageWindows`, or `packageLinux`. Store formats (PKG,
-AppX, Flatpak) need their own sandboxed app and signing, so each keeps its own task.
+Formats are grouped per OS and declared inside the matching platform block. All of a platform's
+non-store formats build in a **single** electron-builder invocation (`packageMacOS` /
+`packageWindows` / `packageLinux`); store formats (PKG, AppX, Flatpak) build separately.
 
-| Format | Platform | Built by | Notes |
-|--------|----------|----------|-------|
-| `TargetFormat.Dmg` | macOS | `packageMacOS` | |
-| `TargetFormat.Pkg` | macOS | `packagePkg` | App Store — built separately |
-| `TargetFormat.Nsis` | Windows | `packageWindows` | NSIS installer (`.exe`) |
-| `TargetFormat.Exe` | Windows | `packageWindows` | Alias for `Nsis` — same output |
-| `TargetFormat.NsisWeb` | Windows | `packageWindows` | NSIS web installer |
-| `TargetFormat.Msi` | Windows | `packageWindows` | |
-| `TargetFormat.Portable` | Windows | `packageWindows` | |
-| `TargetFormat.AppX` | Windows | `packageAppX` | MSIX — built separately |
-| `TargetFormat.Deb` | Linux | `packageLinux` | |
-| `TargetFormat.Rpm` | Linux | `packageLinux` | |
-| `TargetFormat.AppImage` | Linux | `packageLinux` | |
-| `TargetFormat.Snap` | Linux | `packageLinux` | |
-| `TargetFormat.Flatpak` | Linux | `packageFlatpak` | Built separately |
-| `TargetFormat.Zip` | All | `package<OS>` | |
-| `TargetFormat.Tar` | All | `package<OS>` | |
-| `TargetFormat.SevenZ` | All | `package<OS>` | |
+```kotlin
+macOS { targetFormats(MacOSTargetFormat.Dmg, MacOSTargetFormat.Pkg) }
+windows { targetFormats(WindowsTargetFormat.Nsis, WindowsTargetFormat.Msi) }
+linux { targetFormats(LinuxTargetFormat.Deb, LinuxTargetFormat.Rpm, LinuxTargetFormat.AppImage) }
+```
+
+| OS | Format | Built by | Notes |
+|----|--------|----------|-------|
+| macOS | `MacOSTargetFormat.Dmg` | `packageMacOS` | |
+| macOS | `MacOSTargetFormat.Pkg` | `packagePkg` | App Store — built separately |
+| Windows | `WindowsTargetFormat.Nsis` | `packageWindows` | NSIS installer (`.exe`) |
+| Windows | `WindowsTargetFormat.Exe` | `packageWindows` | Alias for `Nsis` — same output |
+| Windows | `WindowsTargetFormat.NsisWeb` | `packageWindows` | NSIS web installer |
+| Windows | `WindowsTargetFormat.Msi` | `packageWindows` | |
+| Windows | `WindowsTargetFormat.Portable` | `packageWindows` | |
+| Windows | `WindowsTargetFormat.AppX` | `packageAppX` | MSIX — built separately |
+| Linux | `LinuxTargetFormat.Deb` | `packageLinux` | |
+| Linux | `LinuxTargetFormat.Rpm` | `packageLinux` | |
+| Linux | `LinuxTargetFormat.AppImage` | `packageLinux` | |
+| Linux | `LinuxTargetFormat.Snap` | `packageLinux` | |
+| Linux | `LinuxTargetFormat.Flatpak` | `packageFlatpak` | Built separately |
+| all | `Zip` / `Tar` / `SevenZ` | `package<OS>` | Present in each OS enum (e.g. `MacOSTargetFormat.Zip`) |
 
 !!! note "One invocation per platform"
     Configuring several formats for an OS (e.g. `Deb`, `Rpm`, `AppImage`) makes
     `packageLinux` build them all in one electron-builder run, rather than one run per format.
 
-Target all formats at once:
+Target all of an OS's formats at once:
 
 ```kotlin
-targetFormats(*TargetFormat.entries.toTypedArray())
+linux { targetFormats(*LinuxTargetFormat.entries.toTypedArray()) }
 ```
 
 ## Package Metadata
@@ -131,7 +130,7 @@ Different platforms have different version requirements:
 Strips `.dll`, `.so`, `.dylib` files for non-target platforms from dependency JARs, reducing package size significantly.
 
 ```kotlin
-nativeDistributions {
+potassium {
     cleanupNativeLibs = true
 }
 ```
@@ -141,7 +140,7 @@ nativeDistributions {
 Generates an ahead-of-time compilation cache for faster startup:
 
 ```kotlin
-nativeDistributions {
+potassium {
     enableAotCache = true
 }
 ```
@@ -153,7 +152,7 @@ Requires JDK 25+ and that the application self-terminates during the training ru
 Displays a splash screen during application startup:
 
 ```kotlin
-nativeDistributions {
+potassium {
     splashImage = "splash.png" // Relative to appResources
 }
 ```
@@ -163,7 +162,7 @@ nativeDistributions {
 Customize output filenames with template variables:
 
 ```kotlin
-nativeDistributions {
+potassium {
     artifactName = "${name}-${version}-${os}-${arch}.${ext}"
 }
 ```
@@ -181,7 +180,7 @@ nativeDistributions {
 Controls compression for electron-builder formats:
 
 ```kotlin
-nativeDistributions {
+potassium {
     compressionLevel = CompressionLevel.Maximum
 }
 ```
@@ -204,7 +203,7 @@ Import custom CA certificates into the bundled JVM's `cacerts` keystore at build
 Useful for corporate proxies, VPN gateways, or filtering services that use a private root CA.
 
 ```kotlin
-nativeDistributions {
+potassium {
     trustedCertificates.from(files(
         "certs/company-proxy-ca.pem",
     ))
@@ -218,7 +217,7 @@ Both PEM and DER formats are accepted. See [Trusted CA Certificates](trusted-cer
 Register a custom URL protocol across all platforms:
 
 ```kotlin
-nativeDistributions {
+potassium {
     protocol("MyApp", "myapp")
     // Registers myapp:// protocol
 }
@@ -235,7 +234,7 @@ This registers the protocol at the OS level; handling the incoming deep link at 
 Register file type associations:
 
 ```kotlin
-nativeDistributions {
+potassium {
     fileAssociation(
         mimeType = "application/x-myapp",
         extension = "myapp",
@@ -286,7 +285,7 @@ Release build tasks are suffixed with `Release`:
 ## Full DSL Tree
 
 ```
-potassium.application {
+potassium {
     mainClass
     jvmArgs
     buildTypes {
@@ -294,20 +293,17 @@ potassium.application {
             proguard { isEnabled, version, optimize, obfuscate, joinOutputJars, configurationFiles }
         }
     }
-    nativeDistributions {
-        targetFormats(...)
-        appName, packageName, packageVersion, description, vendor, copyright, homepage
-        licenseFile, appResourcesRootDir, outputBaseDir
-        modules(...), includeAllModules
-        cleanupNativeLibs, enableAotCache, splashImage
-        compressionLevel, artifactName
-        protocol(name, vararg schemes)
-        fileAssociation(mimeType, extension, description, linuxIconFile?, windowsIconFile?, macOSIconFile?)
-        publish { github { ... }, s3 { ... }, generic { ... } }
-        macOS { iconFile, bundleID, dockName, appCategory, layeredIconDir, signing { ... }, notarization { ... }, dmg { ... }, infoPlist { ... } }
-        windows { iconFile, upgradeUuid, signing { ... }, nsis { ... }, appx { ... } }
-        linux { iconFile, debMaintainer, debDepends, rpmRequires, appImage { ... }, snap { ... }, flatpak { ... } }
-    }
+    appName, packageName, packageVersion, description, vendor, copyright, homepage
+    licenseFile, appResourcesRootDir, outputBaseDir
+    modules(...), includeAllModules
+    cleanupNativeLibs, enableAotCache, splashImage
+    compressionLevel, artifactName
+    protocol(name, vararg schemes)
+    fileAssociation(mimeType, extension, description, linuxIconFile?, windowsIconFile?, macOSIconFile?)
+    publish { github { ... }, s3 { ... }, generic { ... } }
+    macOS { targetFormats(...), iconFile, bundleID, dockName, appCategory, layeredIconDir, signing { ... }, notarization { ... }, dmg { ... }, infoPlist { ... } }
+    windows { targetFormats(...), iconFile, upgradeUuid, signing { ... }, nsis { ... }, appx { ... } }
+    linux { targetFormats(...), iconFile, debMaintainer, debDepends, rpmRequires, appImage { ... }, snap { ... }, flatpak { ... } }
 }
 ```
 

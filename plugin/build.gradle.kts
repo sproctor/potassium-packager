@@ -233,6 +233,9 @@ java {
 kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_11)
+        // The plugin's own code freely uses APIs marked @PotassiumInternal (e.g. TargetFormat);
+        // consumers must opt in explicitly.
+        optIn.add("com.seanproctor.potassium.PotassiumInternal")
     }
 }
 

@@ -3,7 +3,7 @@
 ## Gradle DSL
 
 ```kotlin
-potassium.application {
+potassium {
     mainClass = "com.example.MainKt"
 
     graalvm {

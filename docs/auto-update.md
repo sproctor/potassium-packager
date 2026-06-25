@@ -36,13 +36,13 @@ flowchart LR
 PKG (macOS), AppX/MSIX (Windows), Snap, and Flatpak are not supported by the auto-updater because Potassium assumes these formats are distributed through their respective app stores (Mac App Store, Microsoft Store, Snapcraft, Flathub), which handle updates natively.
 
 !!! warning "macOS: ZIP is required alongside DMG"
-    On macOS, the auto-updater uses the **ZIP** format to perform the update (extract and replace the `.app` bundle silently). The DMG is used for initial installation only. You **must** include `TargetFormat.Zip` in your `targetFormats` configuration, otherwise macOS auto-update will not work:
+    On macOS, the auto-updater uses the **ZIP** format to perform the update (extract and replace the `.app` bundle silently). The DMG is used for initial installation only. You **must** include `MacOSTargetFormat.Zip` in your macOS `targetFormats` configuration, otherwise macOS auto-update will not work:
 
     ```kotlin
-    nativeDistributions {
+    macOS {
         targetFormats(
-            TargetFormat.Dmg,   // Initial install
-            TargetFormat.Zip,   // Required for auto-update on macOS
+            MacOSTargetFormat.Dmg,   // Initial install
+            MacOSTargetFormat.Zip,   // Required for auto-update on macOS
             // ... other formats
         )
     }
@@ -154,10 +154,10 @@ The channel is auto-detected from the version tag in CI.
 
 ### The `publish {}` block in `build.gradle.kts`
 
-The `publish {}` block in `nativeDistributions` **only generates configuration** for electron-builder — it does **not** upload anything by itself. It tells the generated `electron-builder.yml` where the update files will be hosted, so the updater knows where to look:
+The `publish {}` block **only generates configuration** for electron-builder — it does **not** upload anything by itself. It tells the generated `electron-builder.yml` where the update files will be hosted, so the updater knows where to look:
 
 ```kotlin
-nativeDistributions {
+potassium {
     publish {
         github {
             enabled = true

@@ -116,7 +116,7 @@ kotlin {
     }
 }
 
-potassium.application {
+potassium {
     mainClass = "com.example.MainKt"
     jvmArgs += listOf("--enable-native-access=ALL-UNNAMED")
 }

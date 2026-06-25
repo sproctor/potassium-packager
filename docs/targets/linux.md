@@ -13,19 +13,21 @@ Potassium supports five Linux package formats.
 | Flatpak | `.flatpak` | No | Yes |
 
 ```kotlin
-targetFormats(
-    TargetFormat.Deb,
-    TargetFormat.Rpm,
-    TargetFormat.AppImage,
-    TargetFormat.Snap,
-    TargetFormat.Flatpak,
-)
+linux {
+    targetFormats(
+        LinuxTargetFormat.Deb,
+        LinuxTargetFormat.Rpm,
+        LinuxTargetFormat.AppImage,
+        LinuxTargetFormat.Snap,
+        LinuxTargetFormat.Flatpak,
+    )
+}
 ```
 
 ## General Linux Settings
 
 ```kotlin
-nativeDistributions {
+potassium {
     linux {
         iconFile.set(project.file("icons/app.png"))
 
@@ -248,7 +250,7 @@ flatpak install -y flathub org.freedesktop.Sdk//23.08
 Protocol handlers and file associations declared at the top level are automatically injected into `.desktop` files as `MimeType` entries:
 
 ```kotlin
-nativeDistributions {
+potassium {
     protocol("MyApp", "myapp")
     fileAssociation(mimeType = "application/x-myapp", extension = "myapp", description = "MyApp Doc")
 }

@@ -14,7 +14,7 @@ certificates once in your build script — they are imported automatically durin
 ## Configuration
 
 ```kotlin
-nativeDistributions {
+potassium {
     trustedCertificates.from(files(
         "certs/company-proxy-ca.pem",
         "certs/company-proxy-ca-2.pem"

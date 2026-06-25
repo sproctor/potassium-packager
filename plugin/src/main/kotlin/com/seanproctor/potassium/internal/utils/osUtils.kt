@@ -5,8 +5,8 @@
 
 package com.seanproctor.potassium.internal.utils
 
-import com.seanproctor.potassium.desktop.application.internal.files.checkExistingFile
-import com.seanproctor.potassium.desktop.application.tasks.MIN_JAVA_RUNTIME_VERSION
+import com.seanproctor.potassium.internal.files.checkExistingFile
+import com.seanproctor.potassium.tasks.MIN_JAVA_RUNTIME_VERSION
 import org.gradle.api.provider.Provider
 import java.io.File
 

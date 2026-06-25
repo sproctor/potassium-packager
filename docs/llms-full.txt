@@ -50,14 +50,14 @@ plugins {
     id("com.seanproctor.potassium") version "1.15.11"
 }
 
-potassium.application {
+potassium {
     mainClass = "com.example.MainKt"
+    packageName = "MyApp"
+    packageVersion = "1.0.0"
 
-    nativeDistributions {
-        targetFormats(TargetFormat.Dmg, TargetFormat.Nsis, TargetFormat.Deb)
-        packageName = "MyApp"
-        packageVersion = "1.0.0"
-    }
+    macOS { targetFormats(MacOSTargetFormat.Dmg) }
+    windows { targetFormats(WindowsTargetFormat.Nsis) }
+    linux { targetFormats(LinuxTargetFormat.Deb) }
 }
 ```
 
@@ -67,7 +67,7 @@ potassium.application {
 ```
 
 **Kotlin DSL imports:** The Kotlin DSL types live under `com.seanproctor.potassium.*` (for example
-`import com.seanproctor.potassium.desktop.application.dsl.TargetFormat`).
+`import com.seanproctor.potassium.dsl.MacOSTargetFormat`).
 ## Coordinates
 
 - **Plugin id:** `com.seanproctor.potassium`
@@ -135,18 +135,18 @@ plugins {
 ```
 
 **Kotlin DSL imports:** The Kotlin DSL types live under `com.seanproctor.potassium.*` (for example
-`import com.seanproctor.potassium.desktop.application.dsl.TargetFormat`).
+`import com.seanproctor.potassium.dsl.MacOSTargetFormat`).
 ## Minimal Configuration
 
 ```kotlin
-potassium.application {
+potassium {
     mainClass = "com.example.MainKt"
+    packageName = "MyApp"
+    packageVersion = "1.0.0"
 
-    nativeDistributions {
-        targetFormats(TargetFormat.Dmg, TargetFormat.Nsis, TargetFormat.Deb)
-        packageName = "MyApp"
-        packageVersion = "1.0.0"
-    }
+    macOS { targetFormats(MacOSTargetFormat.Dmg) }
+    windows { targetFormats(WindowsTargetFormat.Nsis) }
+    linux { targetFormats(LinuxTargetFormat.Deb) }
 }
 ```
 
@@ -163,7 +163,7 @@ potassium.application {
 
 Potassium is fully compatible with [Compose Hot Reload](https://kotlinlang.org/docs/multiplatform/compose-hot-reload.html). Since Potassium extends the Compose plugin (not replaces it), Hot Reload works out of the box.
 
-The `hotRun` task reads `mainClass` from the `compose.desktop.application` block. If you only set it in `potassium.application`, add a minimal Compose block:
+The `hotRun` task reads `mainClass` from the `compose.desktop.application` block. If you only set it in `potassium`, add a minimal Compose block:
 
 ```kotlin
 compose.desktop.application {
@@ -226,7 +226,7 @@ build/compose/binaries/main-release/<format>/   # Release builds
 Override with:
 
 ```kotlin
-nativeDistributions {
+potassium {
     outputBaseDir.set(project.layout.buildDirectory.dir("custom-output"))
 }
 ```
@@ -242,7 +242,7 @@ The plugin does not automatically detect required JDK modules. Use `suggestModul
 Then declare them in the DSL:
 
 ```kotlin
-nativeDistributions {
+potassium {
     modules("java.sql", "java.net.http", "jdk.accessibility")
 }
 ```
@@ -250,7 +250,7 @@ nativeDistributions {
 Or include everything (larger binary):
 
 ```kotlin
-nativeDistributions {
+potassium {
     includeAllModules = true
 }
 ```
@@ -260,7 +260,7 @@ nativeDistributions {
 Provide platform-specific icon files:
 
 ```kotlin
-nativeDistributions {
+potassium {
     macOS {
         iconFile.set(project.file("icons/app.icns"))
     }
@@ -284,7 +284,7 @@ nativeDistributions {
 Include extra files in the installation directory via `appResourcesRootDir`:
 
 ```kotlin
-nativeDistributions {
+potassium {
     appResourcesRootDir.set(project.layout.projectDirectory.dir("resources"))
 }
 ```
@@ -317,12 +317,12 @@ val resourcesDir = File(System.getProperty("compose.application.resources.dir"))
 
 # Configuration
 
-All Potassium configuration lives inside the `potassium.application { }` block in your `build.gradle.kts`.
+All Potassium configuration lives inside the `potassium { }` block in your `build.gradle.kts`.
 
 ## Overview
 
 ```kotlin
-potassium.application {
+potassium {
     mainClass = "com.example.MainKt"
     jvmArgs += listOf("-Xmx512m")
 
@@ -337,80 +337,79 @@ potassium.application {
         }
     }
 
-    nativeDistributions {
-        // Target formats
-        targetFormats(TargetFormat.Dmg, TargetFormat.Nsis, TargetFormat.Deb)
+    // Package metadata
+    appName = "My App"     // Display name (installer, .desktop, Start Menu)
+    packageName = "MyApp"  // Technical name (executable, package file)
+    packageVersion = "1.0.0"
+    description = "My awesome desktop app"
+    vendor = "My Company"
+    copyright = "Copyright 2025 My Company"
+    homepage = "https://myapp.example.com"
+    licenseFile.set(project.file("LICENSE"))
 
-        // Package metadata
-        appName = "My App"     // Display name (installer, .desktop, Start Menu)
-        packageName = "MyApp"  // Technical name (executable, package file)
-        packageVersion = "1.0.0"
-        description = "My awesome desktop app"
-        vendor = "My Company"
-        copyright = "Copyright 2025 My Company"
-        homepage = "https://myapp.example.com"
-        licenseFile.set(project.file("LICENSE"))
+    // JDK modules
+    modules("java.sql", "java.net.http")
 
-        // JDK modules
-        modules("java.sql", "java.net.http")
+    // Potassium features
+    cleanupNativeLibs = true
+    enableAotCache = true
+    splashImage = "splash.png"
+    compressionLevel = CompressionLevel.Maximum
+    artifactName = "${name}-${version}-${os}-${arch}.${ext}"
 
-        // Potassium features
-        cleanupNativeLibs = true
-        enableAotCache = true
-        splashImage = "splash.png"
-        compressionLevel = CompressionLevel.Maximum
-        artifactName = "${name}-${version}-${os}-${arch}.${ext}"
+    // Deep links & file associations
+    protocol("MyApp", "myapp")
+    fileAssociation(
+        mimeType = "application/x-myapp",
+        extension = "myapp",
+        description = "MyApp Document",
+    )
 
-        // Deep links & file associations
-        protocol("MyApp", "myapp")
-        fileAssociation(
-            mimeType = "application/x-myapp",
-            extension = "myapp",
-            description = "MyApp Document",
-        )
+    // Publishing
+    publish { /* ... */ }
 
-        // Publishing
-        publish { /* ... */ }
-
-        // Platform-specific
-        macOS { /* ... */ }
-        windows { /* ... */ }
-        linux { /* ... */ }
-    }
+    // Platform-specific — target formats are grouped per OS here
+    macOS { targetFormats(MacOSTargetFormat.Dmg) /* ... */ }
+    windows { targetFormats(WindowsTargetFormat.Nsis) /* ... */ }
+    linux { targetFormats(LinuxTargetFormat.Deb) /* ... */ }
 }
 ```
 
 ## Target Formats
 
-All of the current OS's non-store formats are built in a **single** electron-builder invocation by
-one per-platform task: `packageMacOS`, `packageWindows`, or `packageLinux`. Store formats (PKG,
-AppX, Flatpak) need their own sandboxed app and signing, so each keeps its own task.
+Formats are grouped per OS and declared inside the matching platform block. All of a platform's
+non-store formats build in a **single** electron-builder invocation (`packageMacOS` /
+`packageWindows` / `packageLinux`); store formats (PKG, AppX, Flatpak) build separately.
 
-| Format | Platform | Built by | Notes |
-|--------|----------|----------|-------|
-| `TargetFormat.Dmg` | macOS | `packageMacOS` | |
-| `TargetFormat.Pkg` | macOS | `packagePkg` | App Store — built separately |
-| `TargetFormat.Nsis` | Windows | `packageWindows` | NSIS installer (`.exe`) |
-| `TargetFormat.Exe` | Windows | `packageWindows` | Alias for `Nsis` — same output |
-| `TargetFormat.NsisWeb` | Windows | `packageWindows` | NSIS web installer |
-| `TargetFormat.Msi` | Windows | `packageWindows` | |
-| `TargetFormat.Portable` | Windows | `packageWindows` | |
-| `TargetFormat.AppX` | Windows | `packageAppX` | MSIX — built separately |
-| `TargetFormat.Deb` | Linux | `packageLinux` | |
-| `TargetFormat.Rpm` | Linux | `packageLinux` | |
-| `TargetFormat.AppImage` | Linux | `packageLinux` | |
-| `TargetFormat.Snap` | Linux | `packageLinux` | |
-| `TargetFormat.Flatpak` | Linux | `packageFlatpak` | Built separately |
-| `TargetFormat.Zip` | All | `package<OS>` | |
-| `TargetFormat.Tar` | All | `package<OS>` | |
-| `TargetFormat.SevenZ` | All | `package<OS>` | |
+```kotlin
+macOS { targetFormats(MacOSTargetFormat.Dmg, MacOSTargetFormat.Pkg) }
+windows { targetFormats(WindowsTargetFormat.Nsis, WindowsTargetFormat.Msi) }
+linux { targetFormats(LinuxTargetFormat.Deb, LinuxTargetFormat.Rpm, LinuxTargetFormat.AppImage) }
+```
+
+| OS | Format | Built by | Notes |
+|----|--------|----------|-------|
+| macOS | `MacOSTargetFormat.Dmg` | `packageMacOS` | |
+| macOS | `MacOSTargetFormat.Pkg` | `packagePkg` | App Store — built separately |
+| Windows | `WindowsTargetFormat.Nsis` | `packageWindows` | NSIS installer (`.exe`) |
+| Windows | `WindowsTargetFormat.Exe` | `packageWindows` | Alias for `Nsis` — same output |
+| Windows | `WindowsTargetFormat.NsisWeb` | `packageWindows` | NSIS web installer |
+| Windows | `WindowsTargetFormat.Msi` | `packageWindows` | |
+| Windows | `WindowsTargetFormat.Portable` | `packageWindows` | |
+| Windows | `WindowsTargetFormat.AppX` | `packageAppX` | MSIX — built separately |
+| Linux | `LinuxTargetFormat.Deb` | `packageLinux` | |
+| Linux | `LinuxTargetFormat.Rpm` | `packageLinux` | |
+| Linux | `LinuxTargetFormat.AppImage` | `packageLinux` | |
+| Linux | `LinuxTargetFormat.Snap` | `packageLinux` | |
+| Linux | `LinuxTargetFormat.Flatpak` | `packageFlatpak` | Built separately |
+| all | `Zip` / `Tar` / `SevenZ` | `package<OS>` | Present in each OS enum (e.g. `MacOSTargetFormat.Zip`) |
 
 **One invocation per platform:** Configuring several formats for an OS (e.g. `Deb`, `Rpm`, `AppImage`) makes
 `packageLinux` build them all in one electron-builder run, rather than one run per format.
-Target all formats at once:
+Target all of an OS's formats at once:
 
 ```kotlin
-targetFormats(*TargetFormat.entries.toTypedArray())
+linux { targetFormats(*LinuxTargetFormat.entries.toTypedArray()) }
 ```
 
 ## Package Metadata
@@ -446,7 +445,7 @@ Different platforms have different version requirements:
 Strips `.dll`, `.so`, `.dylib` files for non-target platforms from dependency JARs, reducing package size significantly.
 
 ```kotlin
-nativeDistributions {
+potassium {
     cleanupNativeLibs = true
 }
 ```
@@ -456,7 +455,7 @@ nativeDistributions {
 Generates an ahead-of-time compilation cache for faster startup:
 
 ```kotlin
-nativeDistributions {
+potassium {
     enableAotCache = true
 }
 ```
@@ -468,7 +467,7 @@ Requires JDK 25+ and that the application self-terminates during the training ru
 Displays a splash screen during application startup:
 
 ```kotlin
-nativeDistributions {
+potassium {
     splashImage = "splash.png" // Relative to appResources
 }
 ```
@@ -478,7 +477,7 @@ nativeDistributions {
 Customize output filenames with template variables:
 
 ```kotlin
-nativeDistributions {
+potassium {
     artifactName = "${name}-${version}-${os}-${arch}.${ext}"
 }
 ```
@@ -496,7 +495,7 @@ nativeDistributions {
 Controls compression for electron-builder formats:
 
 ```kotlin
-nativeDistributions {
+potassium {
     compressionLevel = CompressionLevel.Maximum
 }
 ```
@@ -517,7 +516,7 @@ Import custom CA certificates into the bundled JVM's `cacerts` keystore at build
 Useful for corporate proxies, VPN gateways, or filtering services that use a private root CA.
 
 ```kotlin
-nativeDistributions {
+potassium {
     trustedCertificates.from(files(
         "certs/company-proxy-ca.pem",
     ))
@@ -531,7 +530,7 @@ Both PEM and DER formats are accepted. See [Trusted CA Certificates](trusted-cer
 Register a custom URL protocol across all platforms:
 
 ```kotlin
-nativeDistributions {
+potassium {
     protocol("MyApp", "myapp")
     // Registers myapp:// protocol
 }
@@ -548,7 +547,7 @@ This registers the protocol at the OS level; handling the incoming deep link at 
 Register file type associations:
 
 ```kotlin
-nativeDistributions {
+potassium {
     fileAssociation(
         mimeType = "application/x-myapp",
         extension = "myapp",
@@ -599,7 +598,7 @@ Release build tasks are suffixed with `Release`:
 ## Full DSL Tree
 
 ```
-potassium.application {
+potassium {
     mainClass
     jvmArgs
     buildTypes {
@@ -607,20 +606,17 @@ potassium.application {
             proguard { isEnabled, version, optimize, obfuscate, joinOutputJars, configurationFiles }
         }
     }
-    nativeDistributions {
-        targetFormats(...)
-        appName, packageName, packageVersion, description, vendor, copyright, homepage
-        licenseFile, appResourcesRootDir, outputBaseDir
-        modules(...), includeAllModules
-        cleanupNativeLibs, enableAotCache, splashImage
-        compressionLevel, artifactName
-        protocol(name, vararg schemes)
-        fileAssociation(mimeType, extension, description, linuxIconFile?, windowsIconFile?, macOSIconFile?)
-        publish { github , s3 , generic  }
-        macOS { iconFile, bundleID, dockName, appCategory, layeredIconDir, signing , notarization , dmg , infoPlist  }
-        windows { iconFile, upgradeUuid, signing , nsis , appx  }
-        linux { iconFile, debMaintainer, debDepends, rpmRequires, appImage , snap , flatpak  }
-    }
+    appName, packageName, packageVersion, description, vendor, copyright, homepage
+    licenseFile, appResourcesRootDir, outputBaseDir
+    modules(...), includeAllModules
+    cleanupNativeLibs, enableAotCache, splashImage
+    compressionLevel, artifactName
+    protocol(name, vararg schemes)
+    fileAssociation(mimeType, extension, description, linuxIconFile?, windowsIconFile?, macOSIconFile?)
+    publish { github , s3 , generic  }
+    macOS { targetFormats(...), iconFile, bundleID, dockName, appCategory, layeredIconDir, signing , notarization , dmg , infoPlist  }
+    windows { targetFormats(...), iconFile, upgradeUuid, signing , nsis , appx  }
+    linux { targetFormats(...), iconFile, debMaintainer, debDepends, rpmRequires, appImage , snap , flatpak  }
 }
 ```
 
@@ -644,13 +640,15 @@ Potassium supports two macOS installer formats and universal (fat) binaries.
 | PKG | `.pkg` | Yes | Yes (App Sandbox) |
 
 ```kotlin
-targetFormats(TargetFormat.Dmg, TargetFormat.Pkg)
+macOS {
+    targetFormats(MacOSTargetFormat.Dmg, MacOSTargetFormat.Pkg)
+}
 ```
 
 ## General macOS Settings
 
 ```kotlin
-nativeDistributions {
+potassium {
     macOS {
         // Bundle identifier (reverse DNS notation)
         bundleID = "com.example.myapp"
@@ -807,11 +805,9 @@ The patching is controlled by the `macOsSdkVersion` DSL property (defaults to `"
 
 ```kotlin
 potassium {
-    nativeDistributions {
-        macOS {
-            macOsSdkVersion = "26.0"  // default — enables Liquid Glass
-            // macOsSdkVersion = null // disable SDK version patching
-        }
+    macOS {
+        macOsSdkVersion = "26.0"  // default — enables Liquid Glass
+        // macOsSdkVersion = null // disable SDK version patching
     }
 }
 ```
@@ -1036,18 +1032,20 @@ Potassium supports five Windows installer formats and a portable mode.
 | Portable | `.exe` | No | No |
 
 ```kotlin
-targetFormats(
-    TargetFormat.Nsis,
-    TargetFormat.Msi,
-    TargetFormat.AppX,
-    TargetFormat.Portable,
-)
+windows {
+    targetFormats(
+        WindowsTargetFormat.Nsis,
+        WindowsTargetFormat.Msi,
+        WindowsTargetFormat.AppX,
+        WindowsTargetFormat.Portable,
+    )
+}
 ```
 
 ## General Windows Settings
 
 ```kotlin
-nativeDistributions {
+potassium {
     windows {
         iconFile.set(project.file("icons/app.ico"))
 
@@ -1251,7 +1249,7 @@ windows {
 ## File Associations
 
 ```kotlin
-nativeDistributions {
+potassium {
     // Cross-platform file association
     fileAssociation(
         mimeType = "application/x-myapp",
@@ -1290,19 +1288,21 @@ Potassium supports five Linux package formats.
 | Flatpak | `.flatpak` | No | Yes |
 
 ```kotlin
-targetFormats(
-    TargetFormat.Deb,
-    TargetFormat.Rpm,
-    TargetFormat.AppImage,
-    TargetFormat.Snap,
-    TargetFormat.Flatpak,
-)
+linux {
+    targetFormats(
+        LinuxTargetFormat.Deb,
+        LinuxTargetFormat.Rpm,
+        LinuxTargetFormat.AppImage,
+        LinuxTargetFormat.Snap,
+        LinuxTargetFormat.Flatpak,
+    )
+}
 ```
 
 ## General Linux Settings
 
 ```kotlin
-nativeDistributions {
+potassium {
     linux {
         iconFile.set(project.file("icons/app.png"))
 
@@ -1523,7 +1523,7 @@ flatpak install -y flathub org.freedesktop.Sdk//23.08
 Protocol handlers and file associations declared at the top level are automatically injected into `.desktop` files as `MimeType` entries:
 
 ```kotlin
-nativeDistributions {
+potassium {
     protocol("MyApp", "myapp")
     fileAssociation(mimeType = "application/x-myapp", extension = "myapp", description = "MyApp Doc")
 }
@@ -1604,20 +1604,13 @@ Potassium automatically manages a **store build pipeline** for store formats. Wh
 | AppX | Windows | [MSIX packaging](https://learn.microsoft.com/en-us/windows/msix/overview) (full trust — not sandboxed) |
 | Flatpak | Linux | [Flatpak sandbox](https://docs.flatpak.org/en/latest/sandbox-permissions.html) |
 
-The plugin determines which formats require sandboxing via `TargetFormat.isStoreFormat`:
+The plugin automatically classifies the store formats — `Pkg` (macOS), `AppX` (Windows), and `Flatpak` (Linux) — as requiring the sandboxed pipeline:
 
 ```kotlin
-targetFormats(
-    // Direct distribution — non-sandboxed pipeline
-    TargetFormat.Dmg,
-    TargetFormat.Nsis,
-    TargetFormat.Deb,
-
-    // Store distribution — sandboxed pipeline
-    TargetFormat.Pkg,
-    TargetFormat.AppX,
-    TargetFormat.Flatpak,
-)
+// Each platform mixes direct (non-sandboxed) and store (sandboxed) formats freely.
+macOS { targetFormats(MacOSTargetFormat.Dmg, MacOSTargetFormat.Pkg) }      // Pkg → sandboxed
+windows { targetFormats(WindowsTargetFormat.Nsis, WindowsTargetFormat.AppX) } // AppX → sandboxed
+linux { targetFormats(LinuxTargetFormat.Deb, LinuxTargetFormat.Flatpak) }   // Flatpak → sandboxed
 ```
 
 Both pipelines run in the same `./gradlew packageDistributionForCurrentOS` invocation. No extra configuration is needed.
@@ -2164,12 +2157,12 @@ Potassium provides a complete auto-update solution compatible with the [electron
 
 PKG (macOS), AppX/MSIX (Windows), Snap, and Flatpak are not supported by the auto-updater because Potassium assumes these formats are distributed through their respective app stores (Mac App Store, Microsoft Store, Snapcraft, Flathub), which handle updates natively.
 
-**macOS: ZIP is required alongside DMG:** On macOS, the auto-updater uses the **ZIP** format to perform the update (extract and replace the `.app` bundle silently). The DMG is used for initial installation only. You **must** include `TargetFormat.Zip` in your `targetFormats` configuration, otherwise macOS auto-update will not work:
+**macOS: ZIP is required alongside DMG:** On macOS, the auto-updater uses the **ZIP** format to perform the update (extract and replace the `.app` bundle silently). The DMG is used for initial installation only. You **must** include `MacOSTargetFormat.Zip` in your macOS `targetFormats` configuration, otherwise macOS auto-update will not work:
     ```kotlin
-    nativeDistributions {
+    macOS {
         targetFormats(
-            TargetFormat.Dmg,   // Initial install
-            TargetFormat.Zip,   // Required for auto-update on macOS
+            MacOSTargetFormat.Dmg,   // Initial install
+            MacOSTargetFormat.Zip,   // Required for auto-update on macOS
             // ... other formats
         )
     }
@@ -2279,10 +2272,10 @@ The channel is auto-detected from the version tag in CI.
 
 ### The `publish {}` block in `build.gradle.kts`
 
-The `publish {}` block in `nativeDistributions` **only generates configuration** for electron-builder — it does **not** upload anything by itself. It tells the generated `electron-builder.yml` where the update files will be hosted, so the updater knows where to look:
+The `publish {}` block **only generates configuration** for electron-builder — it does **not** upload anything by itself. It tells the generated `electron-builder.yml` where the update files will be hosted, so the updater knows where to look:
 
 ```kotlin
-nativeDistributions {
+potassium {
     publish {
         github {
             enabled = true
@@ -2714,7 +2707,7 @@ Potassium can publish your installers and update metadata to **GitHub Releases**
 ## Configuration
 
 ```kotlin
-nativeDistributions {
+potassium {
     publish {
         // Publish mode
         publishMode = PublishMode.Auto // Never, Auto, Always
@@ -2961,7 +2954,7 @@ certificates once in your build script — they are imported automatically durin
 ## Configuration
 
 ```kotlin
-nativeDistributions {
+potassium {
     trustedCertificates.from(files(
         "certs/company-proxy-ca.pem",
         "certs/company-proxy-ca-2.pem"
@@ -3108,7 +3101,7 @@ For everything else — ktor, kotlinx.serialization, Coil, SQLite, Jewel, Compos
 ## Gradle DSL
 
 ```kotlin
-potassium.application {
+potassium {
     mainClass = "com.example.MainKt"
 
     graalvm {
@@ -3361,9 +3354,9 @@ The JNI-based decorated-window backend was specifically designed to work with Gr
 | `cleanupGraalvmMetadata` | Remove manual entries already covered by automatic metadata |
 | `packageGraalvmNative` | Compile and package the application as a native binary |
 | `runGraalvmNative` | Build and run the native image directly |
-| `packageGraalvmDeb` | Package the native image as a `.deb` installer (Linux) |
-| `packageGraalvmDmg` | Package the native image as a `.dmg` installer (macOS) |
-| `packageGraalvmNsis` | Package the native image as an NSIS `.exe` installer (Windows) |
+| `packageGraalvmLinux` | Package the native image as a `.deb` installer (Linux) |
+| `packageGraalvmMacOS` | Package the native image as a `.dmg` installer (macOS) |
+| `packageGraalvmWindows` | Package the native image as an NSIS `.exe` installer (Windows) |
 
 The tasks marked "runs automatically" are dependencies of `packageGraalvmNative` — you don't need to invoke them manually. They are listed here for reference and debugging.
 
@@ -3375,11 +3368,11 @@ The tasks marked "runs automatically" are dependencies of `packageGraalvmNative`
 ./gradlew runGraalvmNative
 
 # Build platform-specific installers (requires Node.js for electron-builder)
-./gradlew packageGraalvmDeb    # Linux
-./gradlew packageGraalvmDmg    # macOS
-./gradlew packageGraalvmNsis   # Windows
+./gradlew packageGraalvmLinux    # Linux
+./gradlew packageGraalvmMacOS    # macOS
+./gradlew packageGraalvmWindows   # Windows
 
-# NOTE: The `homepage` property is required in nativeDistributions for DEB packaging.
+# NOTE: The `homepage` property is required for DEB packaging.
 # electron-builder will fail without it. See Configuration > Package Metadata.
 
 # Optional: collect agent metadata as a final check
@@ -3462,13 +3455,13 @@ jobs:
         shell: bash
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
-            ./gradlew :myapp:packageGraalvmDeb \
+            ./gradlew :myapp:packageGraalvmLinux \
               -PnativeMarch=compatibility --no-daemon
           elif [ "$RUNNER_OS" = "macOS" ]; then
-            ./gradlew :myapp:packageGraalvmDmg \
+            ./gradlew :myapp:packageGraalvmMacOS \
               -PnativeMarch=compatibility --no-daemon
           elif [ "$RUNNER_OS" = "Windows" ]; then
-            ./gradlew :myapp:packageGraalvmNsis \
+            ./gradlew :myapp:packageGraalvmWindows \
               -PnativeMarch=compatibility --no-daemon
           fi
 
@@ -3628,7 +3621,7 @@ kotlin {
     }
 }
 
-potassium.application {
+potassium {
     mainClass = "com.example.MainKt"
     jvmArgs += listOf("--enable-native-access=ALL-UNNAMED")
 }
@@ -4123,10 +4116,8 @@ val releaseVersion = System.getenv("RELEASE_VERSION")
     ?.takeIf { it.isNotBlank() }
     ?: "1.0.0"
 
-potassium.application {
-    nativeDistributions {
-        packageVersion = releaseVersion
-    }
+potassium {
+    packageVersion = releaseVersion
 }
 ```
 
@@ -4413,13 +4404,13 @@ jobs:
         shell: bash
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
-            xvfb-run ./gradlew :myapp:packageGraalvmDeb \
+            xvfb-run ./gradlew :myapp:packageGraalvmLinux \
               -PnativeMarch=compatibility --no-daemon
           elif [ "$RUNNER_OS" = "macOS" ]; then
-            ./gradlew :myapp:packageGraalvmDmg \
+            ./gradlew :myapp:packageGraalvmMacOS \
               -PnativeMarch=compatibility --no-daemon
           elif [ "$RUNNER_OS" = "Windows" ]; then
-            ./gradlew :myapp:packageGraalvmNsis \
+            ./gradlew :myapp:packageGraalvmWindows \
               -PnativeMarch=compatibility --no-daemon
           fi
 
@@ -4434,9 +4425,9 @@ jobs:
 
 | Task | Format | Platform |
 |------|--------|----------|
-| `packageGraalvmDeb` | `.deb` | Linux |
-| `packageGraalvmDmg` | `.dmg` | macOS |
-| `packageGraalvmNsis` | `.exe` (NSIS installer) | Windows |
+| `packageGraalvmLinux` | `.deb` | Linux |
+| `packageGraalvmMacOS` | `.dmg` | macOS |
+| `packageGraalvmWindows` | `.exe` (NSIS installer) | Windows |
 | `packageGraalvmNative` | Raw binary + libraries | All (no installer) |
 
 These tasks first compile the native image via `packageGraalvmNative`, then package it using electron-builder into the target format. Node.js is required (`setup-node: 'true'`).
@@ -4565,7 +4556,7 @@ Scoring: each of 13 dimensions rated 0–10, total = raw sum / 130 × 100. See [
 ³ jDeploy DMG requires a separate GitHub Action + macOS runner ([jdeploy-action-dmg](https://github.com/shannah/jdeploy-action-dmg)).
 
 ??? info "Sources"
-    - **Potassium**: [`TargetFormat.kt`](https://github.com/kdroidFilter/Nucleus/blob/main/plugin-build/plugin/src/main/kotlin/com/seanproctor/potassium/desktop/application/dsl/TargetFormat.kt) — 17 enum values (16 distributable + `RawAppImage` intermediate)
+    - **Potassium**: [`TargetFormat.kt`](https://github.com/kdroidFilter/Nucleus/blob/main/plugin-build/plugin/src/main/kotlin/com/seanproctor/potassium/desktop/application/dsl/TargetFormat.kt) — 17 enum values (16 distributable + `JpackageImage` intermediate)
     - **Conveyor**: [Package formats](https://conveyor.hydraulic.dev/21.1/package-formats/), [Output formats FAQ](https://conveyor.hydraulic.dev/21.1/faq/output-formats/) — MSIX, EXE, ZIP (Windows); signed .app in ZIP (macOS); DEB, tar.gz (Linux). No DMG, PKG, RPM, NSIS, AppImage, Snap, Flatpak.
     - **install4j**: [Media files](https://www.ej-technologies.com/resources/install4j/help/doc/concepts/mediaFiles.html) — EXE, MSI wrapper, DMG, .app, RPM, DEB, tar.gz, shell installer. No PKG, NSIS, AppX.
     - **jpackage**: [Oracle man page](https://docs.oracle.com/en/java/javase/23/docs/specs/man/jpackage.html) — `--type`: app-image, dmg, pkg, exe, msi, deb, rpm
@@ -4686,7 +4677,7 @@ Potassium is Gradle-only, which suits its Compose Desktop audience but limits ad
 ⁵ badass-jlink exposes no cert DSL, but its task hook (`tasks.named("jlink").doLast { … }`) gives access to the staged runtime image before jpackage consumes it — the cleanest manual workaround available.
 
 ??? info "Sources"
-    - **Potassium**: [`AbstractGenerateAotCacheTask.kt`](https://github.com/kdroidFilter/Nucleus/blob/main/plugin-build/plugin/src/main/kotlin/com/seanproctor/potassium/desktop/application/tasks/AbstractGenerateAotCacheTask.kt) — Project Leyden via `-XX:AOTCacheOutput` (JDK 25+); [`ProguardSettings.kt`](https://github.com/kdroidFilter/Nucleus/blob/main/plugin-build/plugin/src/main/kotlin/com/seanproctor/potassium/desktop/application/dsl/ProguardSettings.kt) — ProGuard 7.7.0 default; [`AbstractJLinkTask.kt`](https://github.com/kdroidFilter/Nucleus/blob/main/plugin-build/plugin/src/main/kotlin/com/seanproctor/potassium/desktop/application/tasks/AbstractJLinkTask.kt) — jlink with strip-debug, compression; [`AbstractPatchCaCertificatesTask.kt`](https://github.com/kdroidFilter/Nucleus/blob/main/plugin-build/plugin/src/main/kotlin/com/seanproctor/potassium/desktop/application/tasks/AbstractPatchCaCertificatesTask.kt) — copies JLink runtime, runs keytool to import PEM/DER certificates into `lib/security/cacerts`; `graalvm-runtime` — GraalVM Native Image bootstrap with `GraalVmInitializer.initialize()`, platform-specific reachability metadata, font substitution, and Skiko native library extraction. Requires BellSoft Liberica NIK 25 (full). Packaging via `packageGraalvmDmg`, `packageGraalvmNsis`, `packageGraalvmDeb` tasks.
+    - **Potassium**: [`AbstractGenerateAotCacheTask.kt`](https://github.com/kdroidFilter/Nucleus/blob/main/plugin-build/plugin/src/main/kotlin/com/seanproctor/potassium/desktop/application/tasks/AbstractGenerateAotCacheTask.kt) — Project Leyden via `-XX:AOTCacheOutput` (JDK 25+); [`ProguardSettings.kt`](https://github.com/kdroidFilter/Nucleus/blob/main/plugin-build/plugin/src/main/kotlin/com/seanproctor/potassium/desktop/application/dsl/ProguardSettings.kt) — ProGuard 7.7.0 default; [`AbstractJLinkTask.kt`](https://github.com/kdroidFilter/Nucleus/blob/main/plugin-build/plugin/src/main/kotlin/com/seanproctor/potassium/desktop/application/tasks/AbstractJLinkTask.kt) — jlink with strip-debug, compression; [`AbstractPatchCaCertificatesTask.kt`](https://github.com/kdroidFilter/Nucleus/blob/main/plugin-build/plugin/src/main/kotlin/com/seanproctor/potassium/desktop/application/tasks/AbstractPatchCaCertificatesTask.kt) — copies JLink runtime, runs keytool to import PEM/DER certificates into `lib/security/cacerts`; `graalvm-runtime` — GraalVM Native Image bootstrap with `GraalVmInitializer.initialize()`, platform-specific reachability metadata, font substitution, and Skiko native library extraction. Requires BellSoft Liberica NIK 25 (full). Packaging via `packageGraalvmMacOS`, `packageGraalvmWindows`, `packageGraalvmLinux` tasks.
     - **Conveyor**: [JVM config](https://conveyor.hydraulic.dev/21.1/configs/jvm/) — automatic jlink; `app.jvm.additional-ca-certs` key imports extra certificates into the bundled JDK's `cacerts`; [JDK stdlib](https://conveyor.hydraulic.dev/21.1/stdlib/jdks/) — 6 JDK vendors (Corretto, Zulu, Temurin, JBR, Microsoft, OpenJDK)
     - **install4j**: [JRE bundles](https://www.ej-technologies.com/resources/install4j/help/doc/concepts/jreBundles.html), [createbundle CLI](https://www.ej-technologies.com/resources/install4j/help/doc/cli/createBundle.html) — no cert patching DSL; manual via pre-patched JRE bundle
     - **jpackage**: [Override resources](https://docs.oracle.com/en/java/javase/23/jpackage/override-jpackage-resources.html) — `--resource-dir` limited to packaging templates; cert patching requires `--runtime-image` with a pre-patched jlink output
@@ -5021,42 +5012,44 @@ Replace the JetBrains Compose DSL imports with the Potassium equivalents:
 
 ```diff
 -import org.jetbrains.compose.desktop.application.dsl.TargetFormat
-+import com.seanproctor.potassium.desktop.application.dsl.TargetFormat
++import com.seanproctor.potassium.dsl.MacOSTargetFormat
++import com.seanproctor.potassium.dsl.WindowsTargetFormat
++import com.seanproctor.potassium.dsl.LinuxTargetFormat
 ```
 
-This applies to all DSL types used in your `build.gradle.kts` (e.g. `TargetFormat`, `CompressionLevel`, `SigningAlgorithm`, etc.).
+This applies to all DSL types used in your `build.gradle.kts` (e.g. `MacOSTargetFormat`, `CompressionLevel`, `SigningAlgorithm`, etc.). Potassium splits the single Compose `TargetFormat` into per-OS enums declared inside each platform block — see [Step 3](#step-3-use-the-potassium-dsl).
 
 ## Step 3: Use the Potassium DSL
 
-Replace the `compose.desktop.application` block with `potassium.application` for packaging and distribution:
+Replace the `compose.desktop.application` block with `potassium` for packaging and distribution:
 
 ```diff
 -compose.desktop.application {
-+potassium.application {
++potassium {
      mainClass = "com.example.MainKt"
+-    targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+     packageName = "MyApp"
+     packageVersion = "1.0.0"
 
-     nativeDistributions {
-         targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-         packageName = "MyApp"
-         packageVersion = "1.0.0"
+     macOS {
++        targetFormats(MacOSTargetFormat.Dmg)
+         bundleID = "com.example.myapp"
+         iconFile.set(project.file("icons/app.icns"))
+     }
 
-         macOS {
-             bundleID = "com.example.myapp"
-             iconFile.set(project.file("icons/app.icns"))
-         }
+     windows {
++        targetFormats(WindowsTargetFormat.Msi)
+         iconFile.set(project.file("icons/app.ico"))
+     }
 
-         windows {
-             iconFile.set(project.file("icons/app.ico"))
-         }
-
-         linux {
-             iconFile.set(project.file("icons/app.png"))
-         }
+     linux {
++        targetFormats(LinuxTargetFormat.Deb)
+         iconFile.set(project.file("icons/app.png"))
      }
  }
 ```
 
-**Using Compose Hot Reload?:** Some Compose plugin tasks (like `hotRun`) read `mainClass` from the original `compose.desktop.application` block, not from `potassium.application`. If you use [Compose Hot Reload](https://kotlinlang.org/docs/multiplatform/compose-hot-reload.html), either keep a minimal Compose block alongside Potassium:
+**Using Compose Hot Reload?:** Some Compose plugin tasks (like `hotRun`) read `mainClass` from the original `compose.desktop.application` block, not from `potassium`. If you use [Compose Hot Reload](https://kotlinlang.org/docs/multiplatform/compose-hot-reload.html), either keep a minimal Compose block alongside Potassium:
     ```kotlin
     compose.desktop.application {
         mainClass = "com.example.MainKt"
@@ -5074,53 +5067,53 @@ Replace the `compose.desktop.application` block with `potassium.application` for
 Enable the features you need. All are opt-in:
 
 ```kotlin
-potassium.application {
+potassium {
     mainClass = "com.example.MainKt"
+    packageName = "MyApp"
+    packageVersion = "1.0.0"
 
-    nativeDistributions {
-        targetFormats(TargetFormat.Dmg, TargetFormat.Nsis, TargetFormat.Deb)
-        packageName = "MyApp"
-        packageVersion = "1.0.0"
+    // --- New Potassium features ---
+    cleanupNativeLibs = true
+    enableAotCache = true
+    splashImage = "splash.png"
+    compressionLevel = CompressionLevel.Maximum
+    artifactName = "${name}-${version}-${os}-${arch}.${ext}"
 
-        // --- New Potassium features ---
-        cleanupNativeLibs = true
-        enableAotCache = true
-        splashImage = "splash.png"
-        compressionLevel = CompressionLevel.Maximum
-        artifactName = "${name}-${version}-${os}-${arch}.${ext}"
+    // Deep links
+    protocol("MyApp", "myapp")
 
-        // Deep links
-        protocol("MyApp", "myapp")
+    // File associations
+    fileAssociation(
+        mimeType = "application/x-myapp",
+        extension = "myapp",
+        description = "MyApp Document",
+    )
 
-        // File associations
-        fileAssociation(
-            mimeType = "application/x-myapp",
-            extension = "myapp",
-            description = "MyApp Document",
-        )
-
-        // New Linux targets
+    // Target formats — grouped per OS (with new Potassium targets)
+    macOS { targetFormats(MacOSTargetFormat.Dmg) }
+    windows { targetFormats(WindowsTargetFormat.Nsis) }
+    linux {
         targetFormats(
-            TargetFormat.Dmg, TargetFormat.Nsis, TargetFormat.Deb,
-            TargetFormat.AppImage, TargetFormat.Snap, TargetFormat.Flatpak, // NEW
+            LinuxTargetFormat.Deb,
+            LinuxTargetFormat.AppImage, LinuxTargetFormat.Snap, LinuxTargetFormat.Flatpak, // NEW
         )
+    }
 
-        // Publishing
-        publish {
-            github {
-                enabled = true
-                owner = "myorg"
-                repo = "myapp"
-            }
+    // Publishing
+    publish {
+        github {
+            enabled = true
+            owner = "myorg"
+            repo = "myapp"
         }
+    }
 
-        // NSIS customization
-        windows {
-            nsis {
-                oneClick = false
-                allowToChangeInstallationDirectory = true
-                createDesktopShortcut = true
-            }
+    // NSIS customization
+    windows {
+        nsis {
+            oneClick = false
+            allowToChangeInstallationDirectory = true
+            createDesktopShortcut = true
         }
     }
 }
@@ -5130,8 +5123,8 @@ potassium.application {
 
 | Feature | Before (compose) | After (potassium)                                                                                                                       |
 |---------|-------------------|---------------------------------------------------------------------------------------------------------------------------------------|
-| DSL entry point | `compose.desktop.application` | `potassium.application`                                                                                                                 |
-| DSL imports | `org.jetbrains.compose.desktop.application.dsl.*` | `com.seanproctor.potassium.desktop.application.dsl.*`                                                                            |
+| DSL entry point | `compose.desktop.application` | `potassium`                                                                                                                 |
+| DSL imports | `org.jetbrains.compose.desktop.application.dsl.*` | `com.seanproctor.potassium.dsl.*`                                                                            |
 | Compose dependencies | `compose.desktop.currentOs`, `compose("…")` | Unchanged — keep using the official `org.jetbrains.compose` DSL. Potassium no longer re-exposes a `potassium.*` Compose-dependency accessor.                                          |
 | Target formats | DMG, PKG, MSI, EXE, DEB, RPM | + NSIS, AppX, Portable, AppImage, Snap, Flatpak, archives                                                                             |
 | Native lib cleanup | Manual | `cleanupNativeLibs = true`                                                                                                            |
@@ -5159,22 +5152,22 @@ Unlike Compose Desktop (which uses jpackage), Potassium uses electron-builder fo
 Please specify project homepage, see https://electron.build/configuration
 ```
 
-Make sure to set it in your `nativeDistributions` block:
+Make sure to set it in your `potassium` block:
 
 ```kotlin
-nativeDistributions {
+potassium {
     homepage = "https://myapp.example.com"
 }
 ```
 
-This also applies to GraalVM native image packaging (`packageGraalvmDeb`).
+This also applies to GraalVM native image packaging (`packageGraalvmLinux`).
 
 ## What Stays the Same
 
 Everything from the official plugin works unchanged:
 
 - `mainClass`, `jvmArgs`
-- `nativeDistributions` block (metadata, icons, resources)
+- Package metadata, icons, resources (now set directly in the `potassium` block)
 - `buildTypes` / ProGuard configuration
 - `modules()` / `includeAllModules`
 - The standard Gradle tasks (`run`, `packageDistributionForCurrentOS`, the per-platform `packageMacOS` / `packageWindows` / `packageLinux`, etc.)

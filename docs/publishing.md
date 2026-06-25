@@ -5,7 +5,7 @@ Potassium can publish your installers and update metadata to **GitHub Releases**
 ## Configuration
 
 ```kotlin
-nativeDistributions {
+potassium {
     publish {
         // Publish mode
         publishMode = PublishMode.Auto // Never, Auto, Always

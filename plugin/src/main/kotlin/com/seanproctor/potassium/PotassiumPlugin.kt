@@ -5,7 +5,7 @@
 
 package com.seanproctor.potassium
 
-import com.seanproctor.potassium.desktop.application.internal.configureDesktop
+import com.seanproctor.potassium.internal.configureDesktop
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
