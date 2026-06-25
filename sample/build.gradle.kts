@@ -46,6 +46,8 @@ potassium {
         targetFormats(WindowsTargetFormat.Nsis, WindowsTargetFormat.Msi)
     }
     linux {
+        // electron-builder requires a maintainer ("Name <email>") for .deb packages.
+        debMaintainer = "Potassium Sample <noreply@example.com>"
         targetFormats(LinuxTargetFormat.Deb, LinuxTargetFormat.Rpm, LinuxTargetFormat.AppImage)
     }
 }
