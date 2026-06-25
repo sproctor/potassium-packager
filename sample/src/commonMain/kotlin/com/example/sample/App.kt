@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
  * The desktop entry point in jvmMain hosts it in a window.
  */
 @Composable
-fun App() {
+fun App(version: String? = null) {
     MaterialTheme {
         var count by remember { mutableStateOf(0) }
         Column(
@@ -29,7 +29,13 @@ fun App() {
             verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("Hello from Potassium Packager!", style = MaterialTheme.typography.headlineSmall)
+            val heading =
+                if (version.isNullOrBlank()) {
+                    "Hello from Potassium Packager!"
+                } else {
+                    "Hello from Potassium Packager! v$version"
+                }
+            Text(heading, style = MaterialTheme.typography.headlineSmall)
             Text("You clicked $count time(s)")
             Button(onClick = { count++ }) {
                 Text("Click me")
