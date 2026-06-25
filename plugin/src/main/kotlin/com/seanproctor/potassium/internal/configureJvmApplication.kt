@@ -14,7 +14,6 @@ import com.seanproctor.potassium.tasks.AbstractCheckNativeDistributionRuntime
 import com.seanproctor.potassium.tasks.AbstractElectronBuilderPackageTask
 import com.seanproctor.potassium.tasks.AbstractExtractNativeLibsTask
 import com.seanproctor.potassium.tasks.AbstractGenerateAotCacheTask
-import com.seanproctor.potassium.tasks.AbstractGenerateAppPropertiesTask
 import com.seanproctor.potassium.tasks.AbstractJLinkTask
 import com.seanproctor.potassium.tasks.AbstractJPackageTask
 import com.seanproctor.potassium.tasks.AbstractMergeUpdateYmlTask
@@ -28,10 +27,6 @@ import com.seanproctor.potassium.tasks.AbstractStripNativeLibsFromJarsTask
 import com.seanproctor.potassium.tasks.AbstractSuggestModulesTask
 import com.seanproctor.potassium.tasks.AbstractJarsFlattenTask
 import com.seanproctor.potassium.tasks.AbstractUnpackDefaultApplicationResourcesTask
-import com.seanproctor.potassium.internal.KOTLIN_JVM_PLUGIN_ID
-import com.seanproctor.potassium.internal.KOTLIN_MPP_PLUGIN_ID
-import com.seanproctor.potassium.internal.javaSourceSets
-import com.seanproctor.potassium.internal.mppExt
 import com.seanproctor.potassium.internal.utils.Arch
 import com.seanproctor.potassium.internal.utils.OS
 import com.seanproctor.potassium.internal.utils.currentOS
@@ -104,61 +99,6 @@ private fun JvmApplicationContext.configureCommonJvmDesktopTasks(): CommonJvmDes
             taskNameAction = "unpack",
             taskNameObject = "DefaultComposeDesktopJvmApplicationResources",
         ) {}
-
-    // Generate potassium/potassium-app.properties into a resource directory
-    val generateAppProperties =
-        tasks.register<AbstractGenerateAppPropertiesTask>(
-            taskNameAction = "generate",
-            taskNameObject = "appProperties",
-        ) {
-            appId.set(resolvedAppIdProvider())
-            val resolvedAppName = app.nativeDistributions.appName
-                ?: app.nativeDistributions.packageName
-                ?: project.name
-            appName.set(resolvedAppName)
-            // AUMID must match the electron-builder appId (used in NSIS/MSI shortcut properties)
-            val resolvedAumid = app.nativeDistributions.packageName?.let { "com.app.$it" }
-            resolvedAumid?.let { appAumid.set(it) }
-            app.nativeDistributions.packageVersion?.let { appVersion.set(it) }
-            app.nativeDistributions.vendor?.let { appVendor.set(it) }
-            app.nativeDistributions.description?.let { appDescription.set(it) }
-            // Store the computed StartupWMClass so graalvm-runtime can use it as
-            // WM_CLASS and GNOME can match the window to the .desktop file icon.
-            val wmClass =
-                app.nativeDistributions.linux.startupWMClass
-                    ?.takeIf { it.isNotBlank() }
-                    ?: app.mainClass?.replace('.', '-')
-            wmClass?.let { startupWmClass.set(it) }
-            // Resolve AppX StartupTask TaskId (MSIX auto-launch injection).
-            // electron-builder hardcodes TaskId="SlackStartup" in the injected manifest
-            // (legacy from its Slack origins) — this is the TaskId the runtime must use
-            // to match the installed MSIX package. Custom overrides are possible but
-            // require the user to patch the generated manifest themselves.
-            val appxSettings = app.nativeDistributions.windows.appx
-            if (appxSettings.addAutoLaunchExtension) {
-                val taskId = appxSettings.startupTaskId ?: "SlackStartup"
-                startupTaskId.set(taskId)
-            }
-            outputDir.set(appTmpDir.dir("app-properties"))
-        }
-
-    // Add the generated properties directory to the resource source set
-    val appPropertiesOutputDir = generateAppProperties.flatMap { it.outputDir }
-    if (project.plugins.hasPlugin(KOTLIN_MPP_PLUGIN_ID)) {
-        project.mppExt.targets.all { target ->
-            if (target is org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget) {
-                target.compilations
-                    .getByName("main")
-                    .defaultSourceSet.resources
-                    .srcDir(appPropertiesOutputDir)
-            }
-        }
-    } else if (project.plugins.hasPlugin(KOTLIN_JVM_PLUGIN_ID)) {
-        project.javaSourceSets
-            .getByName("main")
-            .resources
-            .srcDir(appPropertiesOutputDir)
-    }
 
     val checkRuntime =
         tasks.register<AbstractCheckNativeDistributionRuntime>(
@@ -827,7 +767,9 @@ private fun JvmApplicationContext.configurePackageTask(
     packageTask.launcherJvmArgs.set(
         provider {
             val appIdArg = "-D$APP_ID=${resolvedAppIdProvider().get()}"
-            var args = defaultJvmArgs + appIdArg + app.jvmArgs
+            val appVersionArgs =
+                resolvedAppVersion()?.let { listOf("-D$APP_VERSION=$it") } ?: emptyList()
+            var args = defaultJvmArgs + appIdArg + appVersionArgs + app.jvmArgs
             val splash = app.nativeDistributions.splashImage
             if (splash != null) {
                 args = args + "-splash:\$APPDIR/resources/$splash"
@@ -1085,6 +1027,7 @@ private fun JvmApplicationContext.configureRunTask(
         arrayListOf<String>().apply {
             addAll(defaultJvmArgs)
             add("-D$APP_ID=${resolvedAppIdProvider().get()}")
+            resolvedAppVersion()?.let { add("-D$APP_VERSION=$it") }
 
             if (currentOS == OS.MacOS) {
                 val dockName =

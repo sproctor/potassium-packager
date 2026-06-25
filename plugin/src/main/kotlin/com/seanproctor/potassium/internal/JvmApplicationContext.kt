@@ -80,6 +80,15 @@ internal data class JvmApplicationContext(
             }
         }
 
+    /**
+     * Resolves the application version exposed at runtime via the `app.version` system property:
+     * the configured `packageVersion`, falling back to the Gradle project version. Returns null
+     * when neither is set, in which case no `-Dapp.version` argument is added.
+     */
+    fun resolvedAppVersion(): String? =
+        appInternal.nativeDistributions.packageVersion
+            ?: project.version.toString().takeIf { it != "unspecified" }
+
     inline fun <reified T : Any> provider(noinline fn: () -> T): Provider<T> = project.provider(fn)
 
     fun configureDefaultApp() {
