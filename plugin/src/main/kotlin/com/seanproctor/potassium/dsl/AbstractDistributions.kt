@@ -20,7 +20,7 @@ abstract class AbstractDistributions {
 
     val outputBaseDir: DirectoryProperty =
         objects.directoryProperty().apply {
-            set(layout.buildDirectory.dir("compose/binaries"))
+            set(layout.buildDirectory.dir("potassium/binaries"))
         }
 
     var appName: String? = null

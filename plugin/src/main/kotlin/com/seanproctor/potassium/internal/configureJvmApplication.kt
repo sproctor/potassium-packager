@@ -31,10 +31,8 @@ import com.seanproctor.potassium.internal.utils.Arch
 import com.seanproctor.potassium.internal.utils.OS
 import com.seanproctor.potassium.internal.utils.currentOS
 import com.seanproctor.potassium.internal.utils.dependsOn
-import com.seanproctor.potassium.internal.utils.detachedComposeGradleDependency
 import com.seanproctor.potassium.internal.utils.detachedDependency
 import com.seanproctor.potassium.internal.utils.dir
-import com.seanproctor.potassium.internal.utils.excludeTransitiveDependencies
 import com.seanproctor.potassium.internal.utils.file
 import com.seanproctor.potassium.internal.utils.ioFile
 import com.seanproctor.potassium.internal.utils.ioFileOrNull
@@ -107,12 +105,6 @@ private fun JvmApplicationContext.configureCommonJvmDesktopTasks(): CommonJvmDes
         ) {
             jdkHome.set(app.javaHomeProvider)
             checkJdkVendor.set(PotassiumProperties.checkJdkVendor(project.providers))
-            jdkVersionProbeJar.from(
-                project
-                    .detachedComposeGradleDependency(
-                        artifactId = "gradle-plugin-internal-jdk-version-probe",
-                    ).excludeTransitiveDependencies(),
-            )
         }
 
     val suggestRuntimeModules =
@@ -1053,7 +1045,7 @@ private fun JvmApplicationContext.configureRunTask(
             // Dev mode AOT: ./gradlew run -Paot=train|on|auto|off
             val aotCacheDir =
                 project.layout.buildDirectory
-                    .dir("compose/aot-cache")
+                    .dir("potassium/aot-cache")
                     .get()
                     .asFile
             val devAotCache = java.io.File(aotCacheDir, "dev.aot")
@@ -1122,7 +1114,7 @@ private fun JvmApplicationContext.configurePackageUberJarForCurrentOS(
     jar.archiveClassifier.set(buildType.classifier)
     jar.destinationDirectory.set(
         jar.project.layout.buildDirectory
-            .dir("compose/jars"),
+            .dir("potassium/jars"),
     )
 
     jar.doLast {

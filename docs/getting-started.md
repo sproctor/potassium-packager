@@ -124,8 +124,8 @@ Or pass it via the command line:
 Build artifacts are generated in:
 
 ```
-build/compose/binaries/main/<format>/
-build/compose/binaries/main-release/<format>/   # Release builds
+build/potassium/binaries/main/<format>/
+build/potassium/binaries/main-release/<format>/   # Release builds
 ```
 
 Override with:

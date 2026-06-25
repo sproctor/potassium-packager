@@ -31,7 +31,7 @@ abstract class AbstractNativeMacApplicationPackageTask : AbstractPotassiumTask()
     val destinationDir: DirectoryProperty = objects.directoryProperty()
 
     @get:LocalState
-    val workingDir: Provider<Directory> = project.layout.buildDirectory.dir("compose/tmp/$name")
+    val workingDir: Provider<Directory> = project.layout.buildDirectory.dir("potassium/tmp/$name")
 
     @TaskAction
     fun run() {

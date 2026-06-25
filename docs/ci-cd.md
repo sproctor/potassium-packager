@@ -189,24 +189,24 @@ jobs:
         with:
           name: release-assets-${{ runner.os }}-${{ matrix.arch }}
           path: |
-            build/compose/binaries/**/*.dmg
-            build/compose/binaries/**/*.pkg
-            build/compose/binaries/**/*.exe
-            build/compose/binaries/**/*.msi
-            build/compose/binaries/**/*.appx
-            build/compose/binaries/**/*.deb
-            build/compose/binaries/**/*.rpm
-            build/compose/binaries/**/*.AppImage
-            build/compose/binaries/**/*.snap
-            build/compose/binaries/**/*.flatpak
-            build/compose/binaries/**/*.zip
-            build/compose/binaries/**/*.tar
-            build/compose/binaries/**/*.7z
-            build/compose/binaries/**/*.blockmap
-            build/compose/binaries/**/signing-metadata.json
-            build/compose/binaries/**/packaging-metadata.json
-            !build/compose/binaries/**/app/**
-            !build/compose/binaries/**/runtime/**
+            build/potassium/binaries/**/*.dmg
+            build/potassium/binaries/**/*.pkg
+            build/potassium/binaries/**/*.exe
+            build/potassium/binaries/**/*.msi
+            build/potassium/binaries/**/*.appx
+            build/potassium/binaries/**/*.deb
+            build/potassium/binaries/**/*.rpm
+            build/potassium/binaries/**/*.AppImage
+            build/potassium/binaries/**/*.snap
+            build/potassium/binaries/**/*.flatpak
+            build/potassium/binaries/**/*.zip
+            build/potassium/binaries/**/*.tar
+            build/potassium/binaries/**/*.7z
+            build/potassium/binaries/**/*.blockmap
+            build/potassium/binaries/**/signing-metadata.json
+            build/potassium/binaries/**/packaging-metadata.json
+            !build/potassium/binaries/**/app/**
+            !build/potassium/binaries/**/runtime/**
           if-no-files-found: error
 ```
 
@@ -542,7 +542,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: graalvm-${{ runner.os }}-${{ matrix.arch }}
-          path: myapp/build/compose/binaries/**/graalvm-*/**
+          path: myapp/build/potassium/binaries/**/graalvm-*/**
           if-no-files-found: error
 ```
 

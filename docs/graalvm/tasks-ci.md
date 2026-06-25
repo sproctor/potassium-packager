@@ -51,7 +51,7 @@ Use `-PnativeMarch=compatibility` for binaries that should run on older CPUs:
 The raw native binary and its companion shared libraries are generated in:
 
 ```
-<project>/build/compose/tmp/<project>/graalvm/output/
+<project>/build/potassium/tmp/<project>/graalvm/output/
 ```
 
 | Platform | Output |
@@ -63,7 +63,7 @@ The raw native binary and its companion shared libraries are generated in:
 The `packageGraalvm<Format>` tasks produce installers in:
 
 ```
-<project>/build/compose/binaries/<buildType>/graalvm-<format>/
+<project>/build/potassium/binaries/<buildType>/graalvm-<format>/
 ```
 
 ## CI/CD
@@ -126,7 +126,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: graalvm-${{ runner.os }}
-          path: myapp/build/compose/binaries/**/graalvm-*/**
+          path: myapp/build/potassium/binaries/**/graalvm-*/**
 ```
 
 See [CI/CD](../ci-cd.md#graalvm-native-image-release) for the full release workflow with publishing to GitHub Releases.

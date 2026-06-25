@@ -81,7 +81,7 @@ packageMacOS / packageLinux / packageWindows  (or packageDistributionForCurrentO
 ## Notes
 
 - The original JLink runtime image is **never modified**. The patched copy lives in
-  `build/compose/tmp/<appName>/runtime-patched/`.
+  `build/potassium/tmp/<appName>/runtime-patched/`.
 - The `keytool` binary used is the one from the JDK configured via `javaHome` (or the
   Gradle daemon's JVM if not set).
 - This feature patches the **bundled JVM** only. The host machine's JVM is not affected.

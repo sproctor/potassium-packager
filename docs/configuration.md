@@ -110,7 +110,7 @@ linux { targetFormats(*LinuxTargetFormat.entries.toTypedArray()) }
 | `homepage` | `String?` | `null` | Application homepage URL. **Required** for Linux DEB packaging (electron-builder enforces this). |
 | `licenseFile` | `RegularFileProperty` | — | Path to the license file |
 | `appResourcesRootDir` | `DirectoryProperty` | — | Root directory for bundled resources |
-| `outputBaseDir` | `DirectoryProperty` | `build/compose/binaries` | Output directory for built packages |
+| `outputBaseDir` | `DirectoryProperty` | `build/potassium/binaries` | Output directory for built packages |
 
 ### Version Formats
 

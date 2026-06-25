@@ -329,13 +329,13 @@ abstract class AbstractJPackageTask
         private val macAssetsTool by lazy { MacAssetsTool(runExternalTool, logger) }
 
         @get:LocalState
-        protected val signDir: Provider<Directory> = project.layout.buildDirectory.dir("compose/tmp/sign")
+        protected val signDir: Provider<Directory> = project.layout.buildDirectory.dir("potassium/tmp/sign")
 
         @get:LocalState
-        protected val jpackageResources: Provider<Directory> = project.layout.buildDirectory.dir("compose/tmp/resources")
+        protected val jpackageResources: Provider<Directory> = project.layout.buildDirectory.dir("potassium/tmp/resources")
 
         @get:LocalState
-        protected val skikoDir: Provider<Directory> = project.layout.buildDirectory.dir("compose/tmp/skiko")
+        protected val skikoDir: Provider<Directory> = project.layout.buildDirectory.dir("potassium/tmp/skiko")
 
         @get:Internal
         private val libsDir: Provider<Directory> =

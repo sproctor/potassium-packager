@@ -5,7 +5,6 @@
 
 package com.seanproctor.potassium.internal.utils
 
-import com.seanproctor.potassium.PotassiumBuildConfig
 import org.gradle.api.DomainObjectCollection
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
@@ -39,21 +38,6 @@ fun Project.getLocalProperty(key: String): String? {
     }
 }
 
-internal fun Project.detachedComposeGradleDependency(
-    artifactId: String,
-    groupId: String = "org.jetbrains.compose",
-): Configuration = detachedDependency(groupId = groupId, artifactId = artifactId, version = PotassiumBuildConfig.composeGradlePluginVersion)
-
-internal fun Project.detachedComposeDependency(
-    artifactId: String,
-    groupId: String = "org.jetbrains.compose",
-): Configuration =
-    detachedDependency(
-        groupId = groupId,
-        artifactId = artifactId,
-        version = PotassiumBuildConfig.composeVersion,
-    )
-
 internal fun Project.detachedDependency(
     groupId: String,
     artifactId: String,
@@ -62,8 +46,6 @@ internal fun Project.detachedDependency(
     project.configurations.detachedConfiguration(
         project.dependencies.create("$groupId:$artifactId:$version"),
     )
-
-internal fun Configuration.excludeTransitiveDependencies(): Configuration = apply { isTransitive = false }
 
 internal inline fun <reified SubT> DomainObjectCollection<*>.configureEachWithType(crossinline fn: SubT.() -> Unit) {
     configureEach {

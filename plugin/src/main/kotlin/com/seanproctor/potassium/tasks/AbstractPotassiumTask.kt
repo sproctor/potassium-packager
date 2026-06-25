@@ -40,7 +40,7 @@ abstract class AbstractPotassiumTask : DefaultTask() {
     protected abstract val archiveOperations: ArchiveOperations
 
     @get:LocalState
-    protected val logsDir: Provider<Directory> = project.layout.buildDirectory.dir("compose/logs/$name")
+    protected val logsDir: Provider<Directory> = project.layout.buildDirectory.dir("potassium/logs/$name")
 
     @get:Internal
     val verbose: Property<Boolean> =

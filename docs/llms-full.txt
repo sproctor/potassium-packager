@@ -219,8 +219,8 @@ Or pass it via the command line:
 Build artifacts are generated in:
 
 ```
-build/compose/binaries/main/<format>/
-build/compose/binaries/main-release/<format>/   # Release builds
+build/potassium/binaries/main/<format>/
+build/potassium/binaries/main-release/<format>/   # Release builds
 ```
 
 Override with:
@@ -425,7 +425,7 @@ linux { targetFormats(*LinuxTargetFormat.entries.toTypedArray()) }
 | `homepage` | `String?` | `null` | Application homepage URL. **Required** for Linux DEB packaging (electron-builder enforces this). |
 | `licenseFile` | `RegularFileProperty` | — | Path to the license file |
 | `appResourcesRootDir` | `DirectoryProperty` | — | Root directory for bundled resources |
-| `outputBaseDir` | `DirectoryProperty` | `build/compose/binaries` | Output directory for built packages |
+| `outputBaseDir` | `DirectoryProperty` | `build/potassium/binaries` | Output directory for built packages |
 
 ### Version Formats
 
@@ -3021,7 +3021,7 @@ packageMacOS / packageLinux / packageWindows  (or packageDistributionForCurrentO
 ## Notes
 
 - The original JLink runtime image is **never modified**. The patched copy lives in
-  `build/compose/tmp//runtime-patched/`.
+  `build/potassium/tmp//runtime-patched/`.
 - The `keytool` binary used is the one from the JDK configured via `javaHome` (or the
   Gradle daemon's JVM if not set).
 - This feature patches the **bundled JVM** only. The host machine's JVM is not affected.
@@ -3393,7 +3393,7 @@ Use `-PnativeMarch=compatibility` for binaries that should run on older CPUs:
 The raw native binary and its companion shared libraries are generated in:
 
 ```
-<project>/build/compose/tmp/<project>/graalvm/output/
+<project>/build/potassium/tmp/<project>/graalvm/output/
 ```
 
 | Platform | Output |
@@ -3405,7 +3405,7 @@ The raw native binary and its companion shared libraries are generated in:
 The `packageGraalvm<Format>` tasks produce installers in:
 
 ```
-<project>/build/compose/binaries/<buildType>/graalvm-<format>/
+<project>/build/potassium/binaries/<buildType>/graalvm-<format>/
 ```
 
 ## CI/CD
@@ -3468,7 +3468,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: graalvm-${{ runner.os }}
-          path: myapp/build/compose/binaries/**/graalvm-*/**
+          path: myapp/build/potassium/binaries/**/graalvm-*/**
 ```
 
 See [CI/CD](../ci-cd.md#graalvm-native-image-release) for the full release workflow with publishing to GitHub Releases.
@@ -4064,24 +4064,24 @@ jobs:
         with:
           name: release-assets-${{ runner.os }}-${{ matrix.arch }}
           path: |
-            build/compose/binaries/**/*.dmg
-            build/compose/binaries/**/*.pkg
-            build/compose/binaries/**/*.exe
-            build/compose/binaries/**/*.msi
-            build/compose/binaries/**/*.appx
-            build/compose/binaries/**/*.deb
-            build/compose/binaries/**/*.rpm
-            build/compose/binaries/**/*.AppImage
-            build/compose/binaries/**/*.snap
-            build/compose/binaries/**/*.flatpak
-            build/compose/binaries/**/*.zip
-            build/compose/binaries/**/*.tar
-            build/compose/binaries/**/*.7z
-            build/compose/binaries/**/*.blockmap
-            build/compose/binaries/**/signing-metadata.json
-            build/compose/binaries/**/packaging-metadata.json
-            !build/compose/binaries/**/app/**
-            !build/compose/binaries/**/runtime/**
+            build/potassium/binaries/**/*.dmg
+            build/potassium/binaries/**/*.pkg
+            build/potassium/binaries/**/*.exe
+            build/potassium/binaries/**/*.msi
+            build/potassium/binaries/**/*.appx
+            build/potassium/binaries/**/*.deb
+            build/potassium/binaries/**/*.rpm
+            build/potassium/binaries/**/*.AppImage
+            build/potassium/binaries/**/*.snap
+            build/potassium/binaries/**/*.flatpak
+            build/potassium/binaries/**/*.zip
+            build/potassium/binaries/**/*.tar
+            build/potassium/binaries/**/*.7z
+            build/potassium/binaries/**/*.blockmap
+            build/potassium/binaries/**/signing-metadata.json
+            build/potassium/binaries/**/packaging-metadata.json
+            !build/potassium/binaries/**/app/**
+            !build/potassium/binaries/**/runtime/**
           if-no-files-found: error
 ```
 
@@ -4417,7 +4417,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: graalvm-${{ runner.os }}-${{ matrix.arch }}
-          path: myapp/build/compose/binaries/**/graalvm-*/**
+          path: myapp/build/potassium/binaries/**/graalvm-*/**
           if-no-files-found: error
 ```
 

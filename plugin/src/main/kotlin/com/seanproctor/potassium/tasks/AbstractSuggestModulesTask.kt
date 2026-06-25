@@ -43,7 +43,7 @@ abstract class AbstractSuggestModulesTask : AbstractPotassiumTask() {
     val jvmTarget: Property<String> = objects.notNullProperty(MIN_JAVA_RUNTIME_VERSION.toString())
 
     @get:LocalState
-    protected val workingDir: Provider<Directory> = project.layout.buildDirectory.dir("compose/tmp/$name")
+    protected val workingDir: Provider<Directory> = project.layout.buildDirectory.dir("potassium/tmp/$name")
 
     @TaskAction
     fun run() {

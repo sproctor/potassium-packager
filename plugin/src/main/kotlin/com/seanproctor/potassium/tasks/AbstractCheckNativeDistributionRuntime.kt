@@ -15,7 +15,6 @@ import com.seanproctor.potassium.internal.utils.currentOS
 import com.seanproctor.potassium.internal.utils.executableName
 import com.seanproctor.potassium.internal.utils.ioFile
 import com.seanproctor.potassium.internal.utils.notNullProperty
-import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
@@ -27,11 +26,12 @@ import java.util.*
 // __COMPOSE_NATIVE_DISTRIBUTIONS_MIN_JAVA_VERSION__
 internal const val MIN_JAVA_RUNTIME_VERSION = 17
 
+/** Classpath resource holding the runnable JDK-version probe jar bundled into the plugin. */
+private const val PROBE_JAR_RESOURCE = "potassium/jdk-version-probe.jar"
+private const val PROBE_JAR_NAME = "jdk-version-probe.jar"
+
 @CacheableTask
 abstract class AbstractCheckNativeDistributionRuntime : AbstractPotassiumTask() {
-    @get:Classpath
-    val jdkVersionProbeJar: ConfigurableFileCollection = objects.fileCollection()
-
     @get:PathSensitive(PathSensitivity.ABSOLUTE)
     @get:InputDirectory
     val jdkHome: Property<String> = objects.notNullProperty()
@@ -39,7 +39,7 @@ abstract class AbstractCheckNativeDistributionRuntime : AbstractPotassiumTask() 
     @get:Input
     abstract val checkJdkVendor: Property<Boolean>
 
-    private val taskDir = project.layout.buildDirectory.dir("compose/tmp/$name")
+    private val taskDir = project.layout.buildDirectory.dir("potassium/tmp/$name")
 
     @get:OutputFile
     val javaRuntimePropertiesFile: Provider<RegularFile> = taskDir.map { it.file("properties.bin") }
@@ -134,7 +134,7 @@ abstract class AbstractCheckNativeDistributionRuntime : AbstractPotassiumTask() 
         val jdkProperties = Properties()
         runExternalTool(
             tool = javaExecutable,
-            args = listOf("-jar", jdkVersionProbeJar.files.single().absolutePath),
+            args = listOf("-jar", extractProbeJar().absolutePath),
             processStdout = { stdout ->
                 ByteArrayInputStream(stdout.trim().toByteArray()).use {
                     jdkProperties.loadFromXML(it)
@@ -142,5 +142,17 @@ abstract class AbstractCheckNativeDistributionRuntime : AbstractPotassiumTask() 
             },
         )
         return jdkProperties
+    }
+
+    /** Copies the bundled probe jar out of the plugin classpath into the task dir so it can be run. */
+    private fun extractProbeJar(): File {
+        val probeJar = taskDir.ioFile.resolve(PROBE_JAR_NAME)
+        val resource =
+            javaClass.classLoader.getResourceAsStream(PROBE_JAR_RESOURCE)
+                ?: error("Bundled JDK version probe jar not found on plugin classpath: $PROBE_JAR_RESOURCE")
+        resource.use { input ->
+            probeJar.outputStream().buffered().use { output -> input.copyTo(output) }
+        }
+        return probeJar
     }
 }

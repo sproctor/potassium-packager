@@ -5,7 +5,6 @@
 
 package com.seanproctor.potassium.tasks
 
-import com.seanproctor.potassium.PotassiumBuildConfig
 import com.seanproctor.potassium.internal.utils.clearDirs
 import com.seanproctor.potassium.internal.utils.ioFile
 import org.gradle.api.file.Directory
@@ -40,9 +39,7 @@ abstract class AbstractUnpackDefaultApplicationResourcesTask : AbstractPotassium
 
     @OutputDirectory
     val destinationDir: Provider<Directory> =
-        project.layout.buildDirectory.dir(
-            "compose/default-resources/${PotassiumBuildConfig.composeGradlePluginVersion}",
-        )
+        project.layout.buildDirectory.dir("potassium/default-resources")
 
     @get:Internal
     internal val resources = DefaultResourcesProvider(destinationDir)

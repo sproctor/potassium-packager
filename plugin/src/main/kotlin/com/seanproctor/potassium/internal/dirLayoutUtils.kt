@@ -20,8 +20,8 @@ internal fun Task.jvmTmpDirForTask(): Provider<Directory> = project.jvmDirs.tmpD
 internal class JvmDirectoriesProvider(
     private val layout: ProjectLayout,
 ) {
-    val composeDir: Provider<Directory>
-        get() = layout.buildDirectory.dir("compose")
+    val potassiumDir: Provider<Directory>
+        get() = layout.buildDirectory.dir("potassium")
 
-    fun tmpDir(name: String): Provider<Directory> = composeDir.dir("tmp/$name")
+    fun tmpDir(name: String): Provider<Directory> = potassiumDir.dir("tmp/$name")
 }
