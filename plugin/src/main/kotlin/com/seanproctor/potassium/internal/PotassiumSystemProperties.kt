@@ -8,5 +8,5 @@ package com.seanproctor.potassium.internal
 internal const val APP_RESOURCES_DIR = "compose.application.resources.dir"
 internal const val SKIKO_LIBRARY_PATH = "skiko.library.path"
 internal const val CONFIGURE_SWING_GLOBALS = "compose.application.configure.swing.globals"
-internal const val APP_ID = "potassium.app.id"
+internal const val APP_ID = "app.id"
 internal const val APP_VERSION = "app.version"
